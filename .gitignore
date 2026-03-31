@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+venv/
+.env
+
+# Data and Models
+data/
+models/
+notebooks/
+
+# IDEs and Editors
+.vscode/
+.idea/
+
+# Distribution / Build
+dist/
+build/
+*.egg-info/

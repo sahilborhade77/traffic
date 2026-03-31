@@ -1,0 +1,16 @@
+# Computer Vision
+opencv-python
+ultralytics
+
+# Data Handling & Analytics
+pandas
+numpy
+scikit-learn
+
+# Visualization & Dashboard
+matplotlib
+streamlit
+
+# Utility
+python-dotenv
+requests

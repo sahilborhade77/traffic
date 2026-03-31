@@ -2,8 +2,6 @@
 
 A full-stack, modular, AI-driven urban traffic management system. This project integrates Computer Vision, Reinforcement Learning, and Time-Series Forecasting into a unified control dashboard.
 
-## 📁 Repository URL
-[https://github.com/sahilborhade77/traffic](https://github.com/sahilborhade77/traffic)
 
 ---
 

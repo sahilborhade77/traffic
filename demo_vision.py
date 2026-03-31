@@ -9,47 +9,50 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
 def main():
-    parser = argparse.ArgumentParser(description="Smart AI Traffic Module 1: Vehicle Detection Demo")
+    parser = argparse.ArgumentParser(description="Smart AI Traffic Module 1: Lane Tracking Demo")
     parser.add_argument("--input", default="data/traffic_sample.mp4", 
                         help="Path to the input video file")
-    parser.add_argument("--output", default="data/output_result.mp4", 
+    parser.add_argument("--output", default="data/tracking_result.mp4", 
                         help="Path to save the processed video")
-    parser.add_argument("--stats", default="data/stats.csv", 
-                        help="Path to save the counting stats CSV")
+    parser.add_argument("--csv", default="data/traffic_analytics.csv", 
+                        help="Path to save the CSV analytics")
+    parser.add_argument("--json", default="data/traffic_analytics.json", 
+                        help="Path to save the JSON analytics")
     parser.add_argument("--show", action="store_true", default=True,
-                        help="Whether to show the video in real-time (default: True)")
+                        help="Whether to show the video in real-time")
     
     args = parser.parse_args()
 
-    # Step 1: Ensure directories exist
+    # Step 1: Ensure directories
     os.makedirs('data', exist_ok=True)
     os.makedirs('models', exist_ok=True)
 
-    # Step 2: Check for input video
+    # Step 2: Define Custom Lanes
+    # These are normalized coordinates (x, y) from 0.0 to 1.0
+    # You can change these polygons easily here:
+    lane_setup = {
+        'Lane 1 (Incoming)': [(0.15, 0.45), (0.43, 0.45), (0.35, 0.90), (0.05, 0.90)],
+        'Lane 2 (Outgoing)': [(0.57, 0.45), (0.85, 0.45), (0.95, 0.90), (0.65, 0.90)]
+    }
+
     if not os.path.exists(args.input):
-        logger.warning(f"Input file {args.input} not found!")
-        logger.info("Please place a traffic video file at 'data/traffic_sample.mp4' or provide a path via --input.")
-        # Alternatively, you can download a sample video here if desired.
+        logger.warning(f"File {args.input} not found.")
         return
 
-    # Step 3: Initialize Detection & Processing
     try:
-        logger.info("Initializing Vehicle Detector...")
-        detector = VehicleDetector() # Loads yolov8n.pt by default (downloads if not present)
+        logger.info("Loading YOLOv8 Tracker...")
+        detector = VehicleDetector(tracker='bytetrack.yaml') # Using ByteTrack for better stability
         
-        logger.info(f"Starting Video Processing for {args.input}...")
-        processor = TrafficVideoProcessor(args.input, detector)
+        logger.info(f"Analyzing {args.input} with multi-lane tracking...")
+        processor = TrafficVideoProcessor(args.input, detector, lane_definitions=lane_setup)
         
-        # Step 4: Run loop
         processor.process(output_path=args.output, show=args.show)
+        processor.save_results(csv_file=args.csv, json_file=args.json)
         
-        # Step 5: Save CSV results
-        processor.save_stats_csv(args.stats)
-        
-        logger.info(f"Demo complete! Results saved to {args.output} and {args.stats}.")
+        logger.info(f"Module 1 Improved: Results available in {args.csv}")
 
     except Exception as e:
-        logger.error(f"Failed to run demo: {e}")
+        logger.error(f"Demo failed: {e}")
 
 if __name__ == "__main__":
     main()

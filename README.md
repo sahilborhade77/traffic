@@ -1,70 +1,95 @@
-# Smart AI Traffic Intelligence System
+# Smart AI Traffic Intelligence System 🚦
 
-A modular, AI-driven traffic management system for real-time monitoring, signal control, and prediction.
+A full-stack, modular, AI-driven urban traffic management system. This project integrates Computer Vision, Reinforcement Learning, and Time-Series Forecasting into a unified control dashboard.
 
-## 📁 Project Structure
-```text
-f:/traffic_project/
-├── data/               # Datasets and sample videos
-├── models/             # Pre-trained weights (YOLO, RL models)
-├── src/                # Core Python Source Code
-│   ├── vision/         # Vehicle detection and counting (Computer Vision)
-│   ├── control/        # Traffic signal optimization (RL-based)
-│   ├── prediction/     # Historical congestion forecasting (Time-series)
-│   ├── dashboard/      # Web interface for visualization (Streamlit)
-│   └── utils/          # Common helper and shared functions
-├── tests/              # Unit and integration tests
-├── venv/               # Virtual Environment (Generated)
-├── requirements.txt    # list of free/open-source dependencies
-└── README.md           # This file
-```
+## 📁 Repository URL
+[https://github.com/sahilborhade77/traffic](https://github.com/sahilborhade77/traffic)
 
-## 🛠️ Setup Guide
+---
 
-To ensure a clean development environment, follow these steps:
+## 🏗️ Architecture
+1. **Module 1: Vision** (YOLOv8 + ByteTrack) - Multi-lane vehicle detection and real-time counting.
+2. **Module 2: Control** (DQN / Deep Q-Learning) - Adaptive traffic signal timing based on congestion.
+3. **Module 3: Prediction** (LSTM) - Time-series forecasting for upcoming traffic peaks.
+4. **Module 4: Dashboard** (Streamlit + Plotly) - Interactive GUI for real-time monitoring and analytics.
 
-### 1. Create a Virtual Environment
-**Windows:**
+---
+
+## 🛠️ Step-by-Step Setup
+
+### 1. Prerequisites
+- Python 3.8 to 3.11
+- A valid traffic video (`data/traffic_sample.mp4` - provided)
+
+### 2. Virtual Environment Setup (MANDATORY)
 ```powershell
+# Create environment
 python -m venv venv
-```
 
-**macOS/Linux:**
-```bash
-python3 -m venv venv
-```
-
-### 2. Activate the Virtual Environment
-**Windows (PowerShell):**
-```powershell
+# Activate (Windows)
 .\venv\Scripts\activate
-```
 
-**macOS/Linux:**
-```bash
-source venv/bin/activate
-```
+# Activate (macOS/Linux)
+# source venv/bin/activate
 
-### 3. Install Dependencies
-```bash
+# Install Dependencies
 pip install -r requirements.txt
 ```
 
-## 🏃 How to Run
-Currently, the system is in its scaffolding phase. You can launch the placeholder dashboard to verify setup:
-```bash
+---
+
+## 🏃 How to Run the Modules
+
+### Phase 1: Test Vehicle Detection & Tracking
+```powershell
+python demo_vision.py
+```
+*Wait for it to finish and check `data/traffic_analytics.csv`.*
+
+### Phase 2: Train & Evaluate RI Signal Logic
+```powershell
+# Train the AI for 100 episodes
+python demo_control.py --train --episodes 100
+
+# Evaluate and compare against baseline
+python demo_control.py
+```
+*Check `data/control_performance.csv` for results.*
+
+### Phase 3: Traffic Forecasting
+```powershell
+python demo_prediction.py --epochs 30
+```
+*Check `data/prediction_results.csv` for forecast accuracy.*
+
+### Phase 4: Run Integrated Pipeline
+```powershell
+python main_pipeline.py
+```
+
+### Final Phase: Launch the Control Dashboard
+```powershell
 streamlit run src/dashboard/app.py
 ```
 
-## 📋 Module Descriptions
-- **`vision`**: Responsible for processing camera feeds to detect vehicle types (cars, buses, bikes, etc.) and calculate real-time density.
-- **`control`**: Implements reinforcement learning agents to intelligently adjust signal durations.
-- **`prediction`**: Uses time-series models to predict upcoming traffic spikes based on historical patterns.
-- **`dashboard`**: A user interface that integrates live data, predictions, and signal controls into a single view.
+---
 
-## 📝 Roadmap
-1. [x] Project Initialization & Structure
-2. [ ] Phase 1: Real-time Vehicle Detection (YOLO Integration)
-3. [ ] Phase 2: Traffic Signal Logic
-4. [ ] Phase 3: Dashboard Integration
-5. [ ] Phase 4: Full System Simulation
+## ⚠️ Troubleshooting & FAQ
+
+**Q: `ModuleNotFoundError` despite installing everything?**
+A: Make sure your `venv` is activated. You should see `(venv)` in your terminal prompt.
+
+**Q: YOLOv8 is downloading every time?**
+A: It only downloads once and saves to the root folder as `yolov8n.pt`. If you delete it, it will redownload.
+
+**Q: Dashboard is blank/empty?**
+A: You must run the `demo_` scripts or `main_pipeline.py` at least once to generate the data logs (`data/traffic_analytics.csv`) that the dashboard reads.
+
+---
+
+## 🚀 Future Roadmap
+- **Next-Gen Integration**: Support for live IP Camera feeds.
+- **Hardware Simulation**: Connect with Arduino/Raspberry Pi for physical signal indicators.
+- **Enhanced Prediction**: Include weather and event data for more accurate forecasts.
+
+**Built with love as part of the Smart AI Traffic Project.**

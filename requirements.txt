@@ -9,7 +9,9 @@ scikit-learn
 
 # Visualization & Dashboard
 matplotlib
-streamlit
+plotly
+altair<5
+streamlit>=1.37.0
 
 # Utility
 python-dotenv

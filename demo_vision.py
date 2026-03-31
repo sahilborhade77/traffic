@@ -27,12 +27,13 @@ def main():
     os.makedirs('data', exist_ok=True)
     os.makedirs('models', exist_ok=True)
 
-    # Step 2: Define Custom Lanes
-    # These are normalized coordinates (x, y) from 0.0 to 1.0
-    # You can change these polygons easily here:
+    # Step 2: Define 4 Observation Zones for the Roundabout (N, S, E, W)
+    # These cover the entry and exit points of the circle
     lane_setup = {
-        'Lane 1 (Incoming)': [(0.15, 0.45), (0.43, 0.45), (0.35, 0.90), (0.05, 0.90)],
-        'Lane 2 (Outgoing)': [(0.57, 0.45), (0.85, 0.45), (0.95, 0.90), (0.65, 0.90)]
+        'North Entry': [(0.40, 0.02), (0.60, 0.02), (0.60, 0.25), (0.40, 0.25)],
+        'South Entry': [(0.40, 0.70), (0.60, 0.70), (0.60, 0.98), (0.40, 0.98)],
+        'West Entry':  [(0.02, 0.40), (0.28, 0.40), (0.28, 0.60), (0.02, 0.60)],
+        'East Entry':  [(0.70, 0.40), (0.98, 0.40), (0.98, 0.60), (0.70, 0.60)]
     }
 
     if not os.path.exists(args.input):
@@ -40,8 +41,9 @@ def main():
         return
 
     try:
-        logger.info("Loading YOLOv8 Tracker...")
-        detector = VehicleDetector(tracker='bytetrack.yaml') # Using ByteTrack for better stability
+        logger.info("Loading YOLOv8 Tracker (Small version for better distance detection)...")
+        # Switched to yolov8s.pt for better accuracy with small vehicles from height
+        detector = VehicleDetector(model_path='yolov8s.pt', tracker='bytetrack.yaml') 
         
         logger.info(f"Analyzing {args.input} with multi-lane tracking...")
         processor = TrafficVideoProcessor(args.input, detector, lane_definitions=lane_setup)

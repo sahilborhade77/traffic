@@ -12,6 +12,7 @@ venv/
 data/
 models/
 notebooks/
+*.pt
 
 # IDEs and Editors
 .vscode/

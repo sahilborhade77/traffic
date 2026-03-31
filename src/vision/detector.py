@@ -25,21 +25,22 @@ class VehicleDetector:
             logger.error(f"Error initializing detector: {e}")
             raise
 
-    def track(self, frame, conf_threshold=0.3):
+    def track(self, frame, conf_threshold=0.2):
         """
-        Track vehicles across frames.
-        :param frame: current video frame
-        :param conf_threshold: confidence for tracker
-        :return: List of tracked objects with IDs
+        Track vehicles across frames. Improved for small objects.
         """
-        results = self.model.track(frame, persist=True, conf=conf_threshold, tracker=self.tracker, verbose=False)[0]
+        # We increase the detection resolution (imgsz) to help with small cars
+        results = self.model.track(frame, persist=True, conf=conf_threshold, 
+                                 tracker=self.tracker, verbose=False, imgsz=640)[0]
         
         detections = []
-        if results.boxes.id is not None:
+        # If tracking ID is missing but boxes exist, we still want to show them 
+        if results.boxes is not None:
             boxes = results.boxes.xyxy.cpu().numpy().astype(int)
-            ids = results.boxes.id.cpu().numpy().astype(int)
             classes = results.boxes.cls.cpu().numpy().astype(int)
             confs = results.boxes.conf.cpu().numpy()
+            # IDs might be None if the tracker is initializing
+            ids = results.boxes.id.cpu().numpy().astype(int) if results.boxes.id is not None else [0] * len(boxes)
             
             for box, track_id, cls, conf in zip(boxes, ids, classes, confs):
                 if cls in self.target_classes:

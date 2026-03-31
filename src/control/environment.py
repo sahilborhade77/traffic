@@ -1,67 +1,92 @@
+import gymnasium as gym
+from gymnasium import spaces
 import numpy as np
 import logging
 
 logger = logging.getLogger(__name__)
 
-class TrafficSignalEnv:
+class TrafficSignalEnv(gym.Env):
     """
-    A simple custom environment for Traffic Signal Control.
-    Simulates a 4-lane intersection (or N-lanes).
+    Advanced Gymnasium-compliant environment for AI Traffic Control.
+    State: [Lane Densities (4), Current Phase, Time in Phase]
+    Action: Discrete change to one of 4 signal phases.
     """
-    def __init__(self, num_lanes=4, max_queue=20):
+    def __init__(self, num_lanes=4):
+        super(TrafficSignalEnv, self).__init__()
+        
+        # State: 4 lanes + current phase + time_in_phase
+        self.observation_space = spaces.Box(
+            low=0, high=100, shape=(6,), dtype=np.float32
+        )
+        
+        # Action: Switch to phase 0, 1, 2, or 3
+        self.action_space = spaces.Discrete(4)
+        
         self.num_lanes = num_lanes
-        self.max_queue = max_queue
-        # Initial queues: [lane0, lane1, lane2, lane3]
-        self.queues = np.zeros(num_lanes, dtype=int)
-        self.current_green_lane = 0
+        self.max_steps = 1000
+        self.min_green_time = 10
+        self.max_green_time = 60
+        
+        # Internal State
+        self.queues = np.zeros(num_lanes)
+        self.current_phase = 0
+        self.time_in_phase = 0
         self.step_count = 0
         
-    def reset(self):
-        """Reset the environment to initial state."""
-        self.queues = np.zeros(self.num_lanes, dtype=int)
-        self.current_green_lane = 0
+    def reset(self, seed=None, options=None):
+        """Initializes a new training episode."""
+        super().reset(seed=seed)
+        self.queues = np.zeros(self.num_lanes)
+        self.current_phase = 0
+        self.time_in_phase = 0
         self.step_count = 0
-        return self.get_state()
-    
-    def get_state(self):
-        """Returns the current state: queue lengths and active signal."""
-        # Simple state representation: [queue0, queue1, ..., current_green_lane]
-        return np.append(self.queues, [self.current_green_lane])
+        
+        return self._get_obs(), {}
 
-    def step(self, action, incoming_vehicles=None):
-        """
-        Takes an action and advances one simulation step.
-        :param action: Index of the lane to give Green signal (0 to num_lanes-1)
-        :param incoming_vehicles: List of new vehicles arriving in each lane (optional)
-        :return: (next_state, reward, done, info)
-        """
-        # 1. Update Signal
-        self.current_green_lane = action
+    def _get_obs(self):
+        """Returns current state for the AI."""
+        return np.array([
+            self.queues[0], self.queues[1], self.queues[2], self.queues[3],
+            float(self.current_phase),
+            float(self.time_in_phase)
+        ], dtype=np.float32)
+
+    def step(self, action):
+        """Advances the simulation by 1 second based on AI's action."""
+        reward = 0
+        terminated = False
+        truncated = False
         
-        # 2. Process Outgoing (vehicles leave the green lane)
-        # Assume 2 vehicles leave per step if the signal is green
-        discharge_rate = 2
-        departed = min(self.queues[action], discharge_rate)
-        self.queues[action] -= departed
+        # Logic: Switching Phases
+        if action != self.current_phase:
+            if self.time_in_phase >= self.min_green_time:
+                # Valid switch: Reward for choosing a busy lane
+                old_lane_density = self.queues[self.current_phase]
+                new_lane_density = self.queues[action]
+                if new_lane_density > old_lane_density:
+                    reward += 5
+                
+                self.current_phase = action
+                self.time_in_phase = 0
+            else:
+                # Penalty for switching too soon (premature switch)
+                reward -= 10
+        else:
+            self.time_in_phase += 1
         
-        # 3. Process Incoming (new arrivals)
-        if incoming_vehicles is None:
-            # Simulate random arrivals if no external data provided
-            incoming_vehicles = np.random.poisson(0.5, self.num_lanes)
-            
-        self.queues = np.clip(self.queues + incoming_vehicles, 0, self.max_queue)
+        # Simulated Traffic Movement (Discharge green lane, add random incoming)
+        discharge = 2 if self.time_in_phase > 0 else 0
+        self.queues[self.current_phase] = max(0, self.queues[self.current_phase] - discharge)
         
-        # 4. Calculate Reward (Minimize total waiting time/queue length)
-        # Penalty for every car waiting in every lane
-        reward = -np.sum(self.queues)
+        # Random Car Arrivals (Simulating 4 random entries)
+        arrivals = np.random.poisson(0.5, self.num_lanes)
+        self.queues = np.clip(self.queues + arrivals, 0, 100)
+        
+        # Cumulative Penalty: Total cars waiting across all lanes
+        reward -= np.sum(self.queues) * 0.1
         
         self.step_count += 1
-        done = self.step_count >= 100 # End after 100 steps
-        
-        info = {
-            'departed': departed,
-            'incoming': incoming_vehicles,
-            'total_queue': np.sum(self.queues)
-        }
-        
-        return self.get_state(), reward, done, info
+        if self.step_count >= self.max_steps:
+            terminated = True
+            
+        return self._get_obs(), float(reward), terminated, truncated, {}

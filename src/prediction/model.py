@@ -20,36 +20,45 @@ class MovingAverageBaseline:
 
 # --- LSTM Network ---
 
-class LSTMForecaster(nn.Module):
+class TrafficFlowPredictor(nn.Module):
     """
-    Long Short-Term Memory (LSTM) for traffic prediction.
+    Advanced LSTM Predictor with Dropout and Linear Layer Sequence.
+    Simultaneously predicts density for all 4 lanes.
     """
-    def __init__(self, input_dim=1, hidden_dim=64, num_layers=2, output_dim=1):
-        super(LSTMForecaster, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.num_layers = num_layers
+    def __init__(self, input_size=4, hidden_size=128, num_layers=2, output_size=4):
+        super(TrafficFlowPredictor, self).__init__()
         
-        # LSTM Layer
-        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(
+            input_size=input_size,  # 4 lanes simultaneously
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=0.2
+        )
         
-        # Output layers
-        self.fc = nn.Linear(hidden_dim, output_dim)
-
+        self.fc = nn.Sequential(
+            nn.Linear(hidden_size, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, output_size)  # Predict all 4 lane densities together
+        )
+    
     def forward(self, x):
-        # x shape: (batch, seq_len, features)
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim)
-        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim)
-        
-        # Pass through LSTM
-        out, _ = self.lstm(x, (h0, c0))
-        
-        # Take the last hidden state
-        # out shape: (batch, seq_len, hidden_dim)
-        out = out[:, -1, :]
-        
-        # Final prediction
-        out = self.fc(out)
-        return out
+        # x shape: (batch, sequence_length, input_size)
+        lstm_out, _ = self.lstm(x)
+        # Take last time step output (many-to-one architecture)
+        last_output = lstm_out[:, -1, :]
+        predictions = self.fc(last_output)
+        return predictions
+
+def predict_congestion(model, recent_data):
+    """Predict traffic density for next 2-minute horizon"""
+    model.eval()
+    with torch.no_grad():
+        recent_tensor = torch.FloatTensor(recent_data).unsqueeze(0)
+        predicted_density = model(recent_tensor)
+    
+    return predicted_density.numpy()[0]
 
 class TrafficTrainer:
     """

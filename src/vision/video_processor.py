@@ -5,6 +5,8 @@ import time
 import os
 import json
 import logging
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from .detector import VehicleDetector
 
 logger = logging.getLogger(__name__)
@@ -49,16 +51,35 @@ class TrafficVideoProcessor:
         self.counted_ids = {lane: set() for lane in self.lanes}
         self.traffic_data = []
 
-    def process(self, output_path=None, show=True):
+    def apply_perspective_transform(self, frame, roi_points):
+        """
+        Transform to bird's eye view. 
+        ROI points should be 4 corners (top-left, top-right, bottom-right, bottom-left)
+        """
+        width, height = 800, 800
+        src_pts = np.float32(roi_points)
+        dst_pts = np.float32([[0, 0], [width, 0], [width, height], [0, height]])
+        
+        matrix = cv2.getPerspectiveTransform(src_pts, dst_pts)
+        warped = cv2.warpPerspective(frame, matrix, (width, height))
+        return warped, matrix
+
+    def process(self, output_path=None, show=True, use_perspective=False, roi_points=None):
         """
         Run detection, tracking, and lane counting loop.
+        :param use_perspective: If True, warps the road area for better detection
+        :param roi_points: The 4 points of the road to warp (only if use_perspective is True)
         """
         frame_id = 0
         writer = None
         
+        # Scaling adjustment if using warped view (which is 800x800)
+        self.active_width = 800 if use_perspective else self.width
+        self.active_height = 800 if use_perspective else self.height
+
         if output_path:
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            writer = cv2.VideoWriter(output_path, fourcc, self.fps, (self.width, self.height))
+            writer = cv2.VideoWriter(output_path, fourcc, self.fps, (self.active_width, self.active_height))
 
         try:
             while self.cap.isOpened():
@@ -66,13 +87,17 @@ class TrafficVideoProcessor:
                 if not ret:
                     break
                 
+                # OPTIONAL: Apply Perspective Warp
+                if use_perspective and roi_points:
+                    frame, _ = self.apply_perspective_transform(frame, roi_points)
+                
                 start_time = time.time()
                 frame_id += 1
                 
                 # 1. Track vehicles
                 detections = self.detector.track(frame)
                 
-                # 2. Logic: Lane Assignment & Counting
+                # 2. Logic: Lane Assignment & Counting (uses active frame size)
                 current_lane_density = self._update_lane_counts(detections)
                 
                 # 3. Draw UI Components
@@ -88,7 +113,7 @@ class TrafficVideoProcessor:
                     writer.write(frame)
                 
                 if show:
-                    cv2.imshow('Smart AI Traffic - Multi-Lane Tracking', frame)
+                    cv2.imshow('Smart AI Traffic - Perspective View', frame)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
                 
@@ -102,50 +127,13 @@ class TrafficVideoProcessor:
             if show:
                 cv2.destroyAllWindows()
 
-    def _update_lane_counts(self, detections):
-        """
-        Checks each detection's centroid against lane polygons.
-        Returns the current per-lane density (number of vehicles IN the lane right now).
-        Also updates persistent cumulative counts for unique IDs.
-        """
-        current_density = {lane: 0 for lane in self.lanes}
-        
-        for det in detections:
-            centroid = det['centroid']
-            track_id = det['track_id']
-            label = det['label']
-            
-            for lane_name, polygon in self.lanes.items():
-                # Check if centroid is inside the polygon
-                is_inside = cv2.pointPolygonTest(polygon, (float(centroid[0]), float(centroid[1])), False) >= 0
-                
-                if is_inside:
-                    current_density[lane_name] += 1
-                    
-                    # Avoid double counting: Add unique IDs to lane's cumulative list
-                    if track_id not in self.counted_ids[lane_name]:
-                        self.counted_ids[lane_name].add(track_id)
-                        if label in self.lane_counts[lane_name]:
-                            self.lane_counts[lane_name][label] += 1
-        
-        return current_density
-
-    def _draw_lanes(self, frame):
-        """
-        Visualizes the lane boundaries on the frame.
-        """
-        for name, polygon in self.lanes.items():
-            cv2.polylines(frame, [polygon], True, (255, 0, 0), 2)
-            cv2.putText(frame, name, (polygon[0][0], polygon[0][1] - 10), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
-        return frame
-
     def _draw_dashboard(self, frame, density):
         """
         Draw a scoreboard overlay.
         """
         overlay = frame.copy()
-        cv2.rectangle(overlay, (10, 10), (self.width - 10, 100), (0, 0, 0), -1)
+        # Use dynamic height mapping for dashboard
+        cv2.rectangle(overlay, (10, 10), (self.active_width - 10, 100), (0, 0, 0), -1)
         cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
         
         # Display Lane Totals
@@ -199,3 +187,57 @@ class TrafficVideoProcessor:
             
         pd.DataFrame(rows).to_csv(csv_file, index=False)
         logger.info(f"Analysis saved to {csv_file} and {json_file}")
+
+class AsyncTrafficProcessor(TrafficVideoProcessor):
+    """
+    High-performance async processor with batch handling (non-blocking).
+    Extends the base processor with asynchronous concurrency.
+    """
+    def __init__(self, video_path, detector, lane_definitions=None):
+        super().__init__(video_path, detector, lane_definitions)
+        self.executor = ThreadPoolExecutor(max_workers=4)
+        self.loop = asyncio.get_event_loop()
+
+    async def _async_process_frame(self, frame, frame_id):
+        """Processes a single frame in the thread pool."""
+        # Run detection in the pool (non-blocking)
+        detections = await self.loop.run_in_executor(
+            self.executor,
+            self.detector.track,
+            frame
+        )
+        # Process the logic for that specific frame
+        density = self._update_lane_counts(detections)
+        entry = self._prepare_data_entry(frame_id, density)
+        return entry
+
+    async def run_async_pipeline(self, batch_size=30):
+        """Runs the entire video in async batches."""
+        logger.info(f"Starting Async Pipeline (Batch Size: {batch_size})...")
+        tasks = []
+        frame_id = 0
+        
+        while self.cap.isOpened():
+            ret, frame = self.cap.read()
+            if not ret:
+                break
+            
+            frame_id += 1
+            # Create task for current frame
+            task = self.loop.create_task(self._async_process_frame(frame, frame_id))
+            tasks.append(task)
+            
+            # When we hit batch size, process all together
+            if len(tasks) >= batch_size:
+                batch_results = await asyncio.gather(*tasks)
+                self.traffic_data.extend(batch_results)
+                tasks = []
+                logger.debug(f"Processed batch at frame {frame_id}")
+        
+        # Process remaining
+        if tasks:
+            batch_results = await asyncio.gather(*tasks)
+            self.traffic_data.extend(batch_results)
+        
+        self.cap.release()
+        logger.info(f"Async Pipeline complete. Processed {frame_id} frames.")

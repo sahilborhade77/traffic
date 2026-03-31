@@ -10,28 +10,39 @@ class VehicleDetector:
     """
     Vehicle Detection and Tracking using YOLOv8.
     """
-    def __init__(self, model_path='yolov8n.pt', tracker='botsort.yaml'):
+    def __init__(self, model_path='yolov8s.pt', tracker='botsort.yaml'):
         """
-        Initialize the detector with a pre-trained YOLO model and tracker configuration.
-        :param model_path: Path to the YOLO model weights
-        :param tracker: Tracker type ('botsort.yaml' or 'bytetrack.yaml')
+        Initialize the detector with GPU support and optimized model format.
         """
         try:
+            # Auto-detect CUDA GPU
+            self.device = 0 if torch.cuda.is_available() else 'cpu'
+            logger.info(f"Using device: {self.device} ({'GPU' if self.device == 0 else 'CPU'})")
+            
+            # Check if we should use TensorRT (.engine)
+            if model_path.endswith('.pt') and self.device == 0:
+                engine_path = model_path.replace('.pt', '.engine')
+                if os.path.exists(engine_path):
+                    model_path = engine_path
+                    logger.info(f"Loading optimized TensorRT model: {model_path}")
+            
             self.model = YOLO(model_path)
             self.tracker = tracker
             self.target_classes = [2, 3, 5, 7] # car, motorcycle, bus, truck
-            logger.info(f"Model {model_path} with tracker {tracker} initialized.")
+            logger.info(f"Model initialized on {self.device}.")
         except Exception as e:
             logger.error(f"Error initializing detector: {e}")
             raise
 
     def track(self, frame, conf_threshold=0.2):
         """
-        Track vehicles across frames. Improved for small objects.
+        Track vehicles across frames. Improved with Multi-Scale & Agnostic NMS.
         """
         # We increase the detection resolution (imgsz) to help with small cars
-        results = self.model.track(frame, persist=True, conf=conf_threshold, 
-                                 tracker=self.tracker, verbose=False, imgsz=640)[0]
+        # 'agnostic_nms=True' helps when car bounding boxes overlap significantly
+        results = self.model.track(frame, persist=True, conf=conf_threshold, iou=0.45,
+                                 tracker=self.tracker, verbose=False, imgsz=640,
+                                 agnostic_nms=True)[0]
         
         detections = []
         # If tracking ID is missing but boxes exist, we still want to show them 

@@ -13,6 +13,16 @@ plotly
 altair<5
 streamlit>=1.37.0
 
+# Web Layer
+fastapi
+uvicorn
+websockets
+jinja2
+python-multipart
 # Utility
 python-dotenv
 requests
+deep-sort-realtime
+gymnasium
+stable-baselines3
+shimmy>=2.0

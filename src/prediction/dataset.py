@@ -1,62 +1,55 @@
 import numpy as np
-import pandas as pd
 import torch
+import pandas as pd
 from torch.utils.data import Dataset, DataLoader
-from sklearn.preprocessing import MinMaxScaler
-import logging
 
-logger = logging.getLogger(__name__)
-
-class TrafficDataset(Dataset):
+class TrafficSequenceDataset(Dataset):
     """
-    Custom Dataset for Time-Series Traffic Prediction.
+    Constructs overlapping (X, y) windows for traffic forecasting.
+    :param data: Numpy array of shape (time_steps, lanes)
+    :param history_window: Number of past time steps to look at (X)
+    :param forecast_window: Number of future time steps to predict (y)
     """
-    def __init__(self, data, window_size=10, horizon=1):
-        """
-        :param data: Numpy array of normalized traffic counts
-        :param window_size: Number of past steps to look at (X)
-        :param horizon: Number of steps to predict in future (y)
-        """
-        self.X, self.y = self._create_windows(data, window_size, horizon)
-        
-    def _create_windows(self, data, window_size, horizon):
-        X, y = [], []
-        for i in range(len(data) - window_size - horizon + 1):
-            X.append(data[i:i + window_size])
-            y.append(data[i + window_size + horizon - 1])
-        return torch.tensor(np.array(X), dtype=torch.float32), torch.tensor(np.array(y), dtype=torch.float32)
+    def __init__(self, data, history_window=60, forecast_window=12):
+        self.data = torch.FloatTensor(data)
+        self.history_window = history_window
+        self.forecast_window = forecast_window
 
     def __len__(self):
-        return len(self.X)
+        return len(self.data) - self.history_window - self.forecast_window
 
     def __getitem__(self, idx):
-        return self.X[idx], self.y[idx]
+        # Input: The past 'history_window' (e.g. 10 mins)
+        x = self.data[idx : idx + self.history_window]
+        
+        # Target: The density after 'forecast_window' (e.g. at 2 mins out)
+        y = self.data[idx + self.history_window + self.forecast_window - 1]
+        
+        return x, y
 
-def prepare_traffic_data(df, column='total_count', window_size=10, horizon=1, batch_size=32):
+def prepare_prediction_loaders(csv_path, history=60, forecast=12, batch_size=32):
     """
-    Preprocess data and create DataLoaders.
+    Helper to load traffic analytics and create data loaders.
+    Expects CSV from Vision module with '_density' columns.
     """
-    # 1. Scale data
-    scaler = MinMaxScaler()
-    scaled_data = scaler.fit_transform(df[[column]].values)
+    df = pd.read_csv(csv_path)
+    # Automatically find all density columns
+    density_cols = [c for c in df.columns if '_density' in c]
     
-    # 2. Split (Train 70%, Val 15%, Test 15%)
-    n = len(scaled_data)
-    train_end = int(n * 0.7)
-    val_end = int(n * 0.85)
+    if len(density_cols) < 1:
+        raise ValueError("No traffic density columns found in the dataset.")
+        
+    data_values = df[density_cols].values
     
-    train_data = scaled_data[:train_end]
-    val_data = scaled_data[train_end:val_end]
-    test_data = scaled_data[val_end:]
+    # Create dataset
+    full_dataset = TrafficSequenceDataset(data_values, history, forecast)
     
-    # 3. Create Datasets
-    train_ds = TrafficDataset(train_data, window_size, horizon)
-    val_ds = TrafficDataset(val_data, window_size, horizon)
-    test_ds = TrafficDataset(test_data, window_size, horizon)
+    # Train/Test Split (80/20)
+    train_size = int(0.8 * len(full_dataset))
+    test_size = len(full_dataset) - train_size
+    train_ds, test_ds = torch.utils.data.random_split(full_dataset, [train_size, test_size])
     
-    # 4. Create Loaders
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_ds, batch_size=batch_size)
-    test_loader = DataLoader(test_ds, batch_size=batch_size)
+    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
     
-    return train_loader, val_loader, test_loader, scaler
+    return train_loader, test_loader

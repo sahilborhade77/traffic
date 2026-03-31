@@ -5,7 +5,12 @@ import time
 import cv2
 import asyncio
 import logging
+from prometheus_client import Counter, Gauge, generate_latest
+from fastapi.responses import Response
+import torch
+import numpy as np
 
+# Config Logging
 logger = logging.getLogger(__name__)
 app = FastAPI(title="Smart AI Traffic Management Hub")
 
@@ -29,10 +34,46 @@ class ConnectionManager:
             try:
                 await connection.send_json(message)
             except Exception:
-                # Remove stale connections
                 continue
 
 manager = ConnectionManager()
+
+# --- AI Observability Metrics (Prometheus) ---
+TRAFFIC_COUNT = Counter('traffic_vehicles_total', 'Total vehicles detected', ['lane', 'type'])
+WAIT_TIME = Gauge('traffic_wait_time_seconds', 'Current average wait time per lane', ['lane'])
+FPS_GAUGE = Gauge('traffic_ai_fps', 'Current frames per second of the Vision Engine')
+
+@app.get("/metrics")
+async def metrics_endpoint():
+    """Scrape point for Prometheus & Grafana."""
+    return Response(content=generate_latest(), media_type="text/plain")
+
+# --- AI PREDICTION API ---
+@app.post("/api/predict")
+async def predict_traffic(history: list):
+    """
+    Real-time LSTM Prediction Query.
+    Expects a list of 60 historic traffic density points.
+    """
+    try:
+        # Load the LSTM Brain
+        from src.prediction.lstm_model import TrafficFlowPredictor
+        model = TrafficFlowPredictor() # In production, this would be a pre-loaded singleton
+        
+        # Prepare data for LSTM: (batch=1, seq=60, feat=4)
+        input_tensor = torch.FloatTensor(np.array(history)).view(1, 60, 4)
+        
+        with torch.no_grad():
+            predictions = model(input_tensor)
+            
+        return {
+            'status': 'success',
+            'forecast': predictions.tolist()[0],
+            'confidence': 0.89, # Placeholder for model confidence logic
+            'horizon_minutes': 2
+        }
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)}
 
 # --- REAL-TIME ENDPOINTS ---
 

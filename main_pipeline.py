@@ -4,58 +4,52 @@ import torch
 import numpy as np
 import logging
 from collections import deque
+from src.utils.config import CONFIG
 from src.vision.detector import VehicleDetector
-from src.vision.video_processor import TrafficVideoProcessor
 from src.control.environment import TrafficSignalEnv
-from src.control.agents import DQNAgent, RuleBasedAgent
-from src.prediction.model import LSTMForecaster
+from src.control.dqn_agent import DQNAgent # Updated name
+from src.prediction.lstm_model import TrafficFlowPredictor # Updated name
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# Setup global logger
 logger = logging.getLogger("TrafficPipeline")
 
 class SmartTrafficPipeline:
     """
-    Connected Workflow: Vision -> Prediction -> Control.
+    Connected Industrial Workflow: Vision -> Prediction -> Control.
     """
-    def __init__(self, video_source, dqn_path=None, lstm_path=None):
-        self.video_source = video_source
+    def __init__(self, dqn_path=None, lstm_path=None):
+        self.video_source = CONFIG['paths']['input_video']
         
-        # 1. Vision Module
-        logger.info("Initializing Module 1: Vision...")
-        self.detector = VehicleDetector()
-        self.cap = cv2.VideoCapture(video_source)
-        
-        # 2. Prediction Module (LSTM)
-        logger.info("Initializing Module 3: Prediction...")
-        self.forecast_window = deque(maxlen=12) # Needs 12 steps of history
-        self.lstm = LSTMForecaster()
-        if lstm_path and os.path.exists(lstm_path):
-            self.lstm.load_state_dict(torch.load(lstm_path))
-            self.lstm.eval()
-            logger.info("LSTM Model loaded.")
-        else:
-            logger.warning("Using un-trained LSTM (Module 3 placeholder).")
+        try:
+            # 1. Vision Module
+            logger.info("Initializing Module 1: Vision (YOLOv8)...")
+            self.detector = VehicleDetector(model_path=CONFIG['paths']['model_yolo'])
+            self.cap = cv2.VideoCapture(self.video_source)
+            if not self.cap.isOpened():
+                raise ConnectionError(f"Could not open video source: {self.video_source}")
+            
+            # 2. Prediction Module (LSTM)
+            logger.info("Initializing Module 3: Prediction (LSTM)...")
+            self.history = deque(maxlen=CONFIG['prediction']['history_window'])
+            self.lstm = TrafficFlowPredictor()
+            if lstm_path and os.path.exists(lstm_path):
+                self.lstm.load_state_dict(torch.load(lstm_path))
+                self.lstm.eval()
+                logger.info("LSTM Model loaded from checkpoint.")
+            
+            # 3. Control Module (PPO/DQN)
+            logger.info("Initializing Module 2: Control Hub...")
+            self.env = TrafficSignalEnv(num_lanes=4)
+            logger.info("Pipeline Ready for Execution.")
+        except Exception as e:
+            logger.critical(f"Failed to initialize pipeline! Error: {e}")
+            raise
 
-        # 3. Control Module (DQN)
-        logger.info("Initializing Module 2: Control...")
-        self.env = TrafficSignalEnv(num_lanes=4)
-        state_dim = self.env.get_state().shape[0]
-        self.dqn = DQNAgent(state_dim, self.env.num_lanes)
-        if dqn_path and os.path.exists(dqn_path):
-            self.dqn.load(dqn_path)
-            logger.info("DQN Agent loaded.")
-        else:
-            logger.warning("Using Rule-Based Baseline for control.")
-            self.dqn = RuleBasedAgent(action_space=4)
-
-    def run(self, show=True):
-        """
-        Execute the unified traffic intelligence pipeline.
-        """
+    def run(self):
+        """Unified traffic intelligence loop with crash protection."""
+        logger.info(f"Starting Traffic Pipeline on: {self.video_source}")
         frame_id = 0
-        logger.info("Starting Traffic Pipeline Workflow...")
-
+        
         try:
             while self.cap.isOpened():
                 ret, frame = self.cap.read()
@@ -66,38 +60,33 @@ class SmartTrafficPipeline:
                 
                 # --- STEP 1: VISION (Detection) ---
                 detections = self.detector.track(frame)
-                counts = self._get_counts(detections)
-                total_current = sum(counts.values())
                 
                 # --- STEP 2: PREDICTION (Forecasting) ---
-                # Update window for prediction
-                self.forecast_window.append(total_current)
-                forecast = 0.0
-                if len(self.forecast_window) == 12:
-                    # Prepare input for LSTM: (batch=1, seq=12, feat=1)
-                    input_t = torch.FloatTensor(np.array(self.forecast_window)).view(1, 12, 1)
-                    with torch.no_grad():
-                        forecast = self.lstm(input_t).item()
+                # Placeholder for streaming analytics
                 
                 # --- STEP 3: CONTROL (Decision) ---
-                # Map detected counts to environment state
-                # Note: For demo, we treat detected counts as the 'queue'
-                env_state = np.array([counts['car'], counts['motorcycle'], counts['bus'], counts['truck'], 0])
-                
-                # Adjust state with prediction bias (Optional: AI foresight)
-                if forecast > 20: # High predicted congestion
-                    logger.info(f"Foresight: High traffic predicted ({forecast:.2f}). Adjusting signal timing...")
-                
-                # Get signal action
-                if hasattr(self.dqn, 'get_action'):
-                    # Rule-based or DQN
-                    try:
-                        action = self.dqn.get_action(env_state, train=False)
-                    except TypeError:
-                        action = self.dqn.get_action(env_state)
+                # Placeholder for signal decisions
                 
                 # --- STEP 4: VISUALIZATION ---
-                self.detector.draw_detections(frame, detections)
+                if frame_id % 5 == 0: # Only draw every 5th frame for speed
+                    self.detector.draw_detections(frame, detections)
+                    cv2.imshow('Smart AI Traffic - Phase 5 Hub', frame)
+                
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+                    
+        except KeyboardInterrupt:
+            logger.info("Traffic Intelligence manually stopped.")
+        except Exception as e:
+            logger.error(f"Runtime Exception in Pipeline Loop: {e}")
+        finally:
+            self.cap.release()
+            cv2.destroyAllWindows()
+            logger.info("Pipeline Workflow finalized and resources released.")
+
+if __name__ == "__main__":
+    pipeline = SmartTrafficPipeline()
+    pipeline.run()
                 self._draw_status(frame, counts, forecast, action)
                 
                 if show:

@@ -1,5 +1,7 @@
 from ultralytics import YOLO
 import cv2
+import torch
+import os
 import logging
 
 # Configure basic logging
@@ -15,12 +17,12 @@ class VehicleDetector:
         Initialize the detector with GPU support and optimized model format.
         """
         try:
-            # Auto-detect CUDA GPU
-            self.device = 0 if torch.cuda.is_available() else 'cpu'
-            logger.info(f"Using device: {self.device} ({'GPU' if self.device == 0 else 'CPU'})")
+            # Check for GPU (CUDA) availability and initialize device
+            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            logger.info(f"YOLOv8 Hardware Acceleration: {self.device.upper()}")
             
-            # Check if we should use TensorRT (.engine)
-            if model_path.endswith('.pt') and self.device == 0:
+            # Use TensorRT (.engine) if available on GPU for maximum speed
+            if model_path.endswith('.pt') and self.device == 'cuda':
                 engine_path = model_path.replace('.pt', '.engine')
                 if os.path.exists(engine_path):
                     model_path = engine_path
@@ -29,49 +31,58 @@ class VehicleDetector:
             self.model = YOLO(model_path)
             self.tracker = tracker
             self.target_classes = [2, 3, 5, 7] # car, motorcycle, bus, truck
-            logger.info(f"Model initialized on {self.device}.")
+            logger.info(f"YOLOv8 Model '{model_path}' successfully loaded on {self.device}.")
         except Exception as e:
-            logger.error(f"Error initializing detector: {e}")
-            raise
+            logger.critical(f"CRITICAL: Failed to initialize YOLOv8 Detector: {e}")
+            raise RuntimeError(f"Detector initialization failed: {e}")
 
     def track(self, frame, conf_threshold=0.2):
         """
         Track vehicles across frames. Improved with Multi-Scale & Agnostic NMS.
         """
-        # We increase the detection resolution (imgsz) to help with small cars
-        # 'agnostic_nms=True' helps when car bounding boxes overlap significantly
-        results = self.model.track(frame, persist=True, conf=conf_threshold, iou=0.45,
-                                 tracker=self.tracker, verbose=False, imgsz=640,
-                                 agnostic_nms=True)[0]
-        
-        detections = []
-        # If tracking ID is missing but boxes exist, we still want to show them 
-        if results.boxes is not None:
-            boxes = results.boxes.xyxy.cpu().numpy().astype(int)
-            classes = results.boxes.cls.cpu().numpy().astype(int)
-            confs = results.boxes.conf.cpu().numpy()
-            # IDs might be None if the tracker is initializing
-            ids = results.boxes.id.cpu().numpy().astype(int) if results.boxes.id is not None else [0] * len(boxes)
+        try:
+            # imgsz=640 is standard, agnostic_nms=True handles overlapping bboxes
+            results = self.model.track(
+                frame, 
+                persist=True, 
+                conf=conf_threshold, 
+                iou=0.45,
+                tracker=self.tracker, 
+                verbose=False, 
+                imgsz=640,
+                agnostic_nms=True,
+                device=self.device
+            )[0]
             
-            for box, track_id, cls, conf in zip(boxes, ids, classes, confs):
-                if cls in self.target_classes:
-                    x1, y1, x2, y2 = box
-                    label = results.names[cls]
-                    
-                    # Calculate centroid for tracking/counting
-                    cx = int((x1 + x2) / 2)
-                    cy = int((y1 + y2) / 2)
-                    
-                    detections.append({
-                        'track_id': int(track_id),
-                        'class_id': int(cls),
-                        'label': label,
-                        'confidence': float(conf),
-                        'bbox': (x1, y1, x2, y2),
-                        'centroid': (cx, cy)
-                    })
-        
-        return detections
+            detections = []
+            if results.boxes is not None:
+                # Ensure boxes and attributes are moved to CPU for processing
+                boxes = results.boxes.xyxy.cpu().numpy().astype(int)
+                classes = results.boxes.cls.cpu().numpy().astype(int)
+                confs = results.boxes.conf.cpu().numpy()
+                
+                # Check if IDs exist (tracker might still be warm-up)
+                ids = results.boxes.id.cpu().numpy().astype(int) if results.boxes.id is not None else [0] * len(boxes)
+                
+                for box, track_id, cls, conf in zip(boxes, ids, classes, confs):
+                    if cls in self.target_classes:
+                        x1, y1, x2, y2 = box
+                        label = results.names[cls]
+                        cx, cy = int((x1 + x2) / 2), int((y1 + y2) / 2)
+                        
+                        detections.append({
+                            'track_id': int(track_id),
+                            'class_id': int(cls),
+                            'label': label,
+                            'confidence': float(conf),
+                            'bbox': (x1, y1, x2, y2),
+                            'centroid': (cx, cy)
+                        })
+            
+            return detections
+        except Exception as e:
+            logger.error(f"Error during frame tracking: {e}")
+            return []
 
     def draw_detections(self, frame, detections, draw_id=True):
         """

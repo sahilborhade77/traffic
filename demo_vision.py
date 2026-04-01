@@ -1,12 +1,21 @@
 import os
 import argparse
+import torch
+import cv2
+import logging
 from src.vision.detector import VehicleDetector
 from src.vision.video_processor import TrafficVideoProcessor
-import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+# Configure logging with more detailed format
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+def check_hardware():
+    """Logs the available hardware acceleration."""
+    if torch.cuda.is_available():
+        logger.info(f"✅ GPU Acceleration Detected: {torch.cuda.get_device_name(0)}")
+    else:
+        logger.warning("⚠️ No GPU found. Processing will be significantly slower on CPU.")
 
 def main():
     parser = argparse.ArgumentParser(description="Smart AI Traffic Module 1: Lane Tracking Demo")
@@ -22,6 +31,7 @@ def main():
                         help="Whether to show the video in real-time")
     
     args = parser.parse_args()
+    check_hardware()
 
     # Step 1: Ensure directories
     os.makedirs('data', exist_ok=True)

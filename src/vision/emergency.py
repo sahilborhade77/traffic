@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import time
+import torch
 import logging
 
 logger = logging.getLogger(__name__)

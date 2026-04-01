@@ -6,6 +6,7 @@ import os
 import json
 import logging
 import asyncio
+import torch
 from concurrent.futures import ThreadPoolExecutor
 from .detector import VehicleDetector
 
@@ -49,6 +50,8 @@ class TrafficVideoProcessor:
         # Results & Tracking State
         self.lane_counts = {lane: {'car': 0, 'motorcycle': 0, 'bus': 0, 'truck': 0} for lane in self.lanes}
         self.counted_ids = {lane: set() for lane in self.lanes}
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        logger.info(f"Processor initialized. Using {self.device.upper()} for calculations.")
         self.traffic_data = []
 
     def apply_perspective_transform(self, frame, roi_points):
@@ -146,6 +149,39 @@ class TrafficVideoProcessor:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
             y_pos += 30
             
+        return frame
+
+    def _update_lane_counts(self, detections):
+        """
+        Assign each detection to a lane and update cumulative counts.
+        """
+        current_density = {lane: 0 for lane in self.lanes}
+        
+        for det in detections:
+            track_id = det['track_id']
+            label = det['label']
+            cx, cy = det['centroid']
+            
+            for name, poly in self.lanes.items():
+                # Check if centroid is within lane polygon
+                if cv2.pointPolygonTest(poly, (float(cx), float(cy)), False) >= 0:
+                    current_density[name] += 1
+                    
+                    # Persistent counting: Only increment if this track_id hasn't been seen in this lane
+                    if track_id not in self.counted_ids[name] and track_id != 0:
+                        self.lane_counts[name][label] = self.lane_counts[name].get(label, 0) + 1
+                        self.counted_ids[name].add(track_id)
+                    break
+        return current_density
+
+    def _draw_lanes(self, frame):
+        """
+        Draw lane polygons on the frame.
+        """
+        for name, pixels in self.lanes.items():
+            cv2.polylines(frame, [pixels], True, (0, 255, 255), 2)
+            cv2.putText(frame, name, (pixels[0][0], pixels[0][1] - 10), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
         return frame
 
     def _prepare_data_entry(self, frame_id, density):

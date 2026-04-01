@@ -1,6 +1,7 @@
 import time
 import numpy as np
 import cv2
+import torch
 import logging
 from deep_sort_realtime.deepsort_tracker import DeepSort
 

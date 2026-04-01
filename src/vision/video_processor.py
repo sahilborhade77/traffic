@@ -9,6 +9,7 @@ import asyncio
 import torch
 from concurrent.futures import ThreadPoolExecutor
 from .detector import VehicleDetector
+from .lane_learner import LaneLearner
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,13 @@ class TrafficVideoProcessor:
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         logger.info(f"Processor initialized. Using {self.device.upper()} for calculations.")
         self.traffic_data = []
+        
+        # New Feature: Lane Learning & Perspective
+        self.learner = LaneLearner(eps=30, min_samples=25)
+        self.frame_count = 0
+        self.auto_discovery_mode = True
+        self.track_zone_memory = {} # Maps track_id -> last_known_zone
+        self.start_time = time.time()
 
     def apply_perspective_transform(self, frame, roi_points):
         """
@@ -116,9 +124,17 @@ class TrafficVideoProcessor:
                     writer.write(frame)
                 
                 if show:
+                    # Overlay learned lanes
+                    frame = self.learner.visualize_learned_lanes(frame)
                     cv2.imshow('Smart AI Traffic - Perspective View', frame)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
+                
+                # Periodic Lane Learning
+                if self.auto_discovery_mode and self.frame_count % 100 == 0:
+                    learned_rois = self.learner.learn_lanes(frame.shape)
+                    if learned_rois:
+                        self.lanes.update(learned_rois)
                 
                 if frame_id % 30 == 0:
                     logger.info(f"Processed {frame_id} frames. IDs in memory: {len(detections)}")
@@ -153,25 +169,39 @@ class TrafficVideoProcessor:
 
     def _update_lane_counts(self, detections):
         """
-        Assign each detection to a lane and update cumulative counts.
+        Processes counts against dynamic ROI set with a cross-boundary engine.
         """
         current_density = {lane: 0 for lane in self.lanes}
         
+        # Collect for learning
+        self.learner.collect_points(detections)
+        
         for det in detections:
-            track_id = det['track_id']
-            label = det['label']
-            cx, cy = det['centroid']
+            tid = det['track_id']
+            curr_pos = det['centroid']
             
+            # Find current zone
+            active_zone = None
             for name, poly in self.lanes.items():
-                # Check if centroid is within lane polygon
-                if cv2.pointPolygonTest(poly, (float(cx), float(cy)), False) >= 0:
+                if cv2.pointPolygonTest(poly, (float(curr_pos[0]), float(curr_pos[1])), False) >= 0:
+                    active_zone = name
                     current_density[name] += 1
-                    
-                    # Persistent counting: Only increment if this track_id hasn't been seen in this lane
-                    if track_id not in self.counted_ids[name] and track_id != 0:
-                        self.lane_counts[name][label] = self.lane_counts[name].get(label, 0) + 1
-                        self.counted_ids[name].add(track_id)
                     break
+            
+            # Crossing Engine
+            if active_zone:
+                last_zone = self.track_zone_memory.get(tid, "Outside")
+                if active_zone != last_zone:
+                    # New Entry Event
+                    if tid not in self.counted_ids[active_zone] and tid != 0:
+                        self.lane_counts[active_zone][det['label']] = self.lane_counts[active_zone].get(det['label'], 0) + 1
+                        self.counted_ids[active_zone].add(tid)
+                        logger.info(f"ENTRY: {det['label']} {tid} entered {active_zone}")
+                    
+                    self.track_zone_memory[tid] = active_zone
+            else:
+                self.track_zone_memory[tid] = "Outside"
+                
         return current_density
 
     def _draw_lanes(self, frame):

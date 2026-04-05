@@ -1,0 +1,47 @@
+# PART 5.2: Configuration Files - Violation Rules & Fines
+
+# Active Violation Types and Penalties
+violation_types:
+  RED_LIGHT:
+    code: "RL01"
+    name: "Red Light Violation"
+    base_fine: 1000
+    severity: "high"
+    description: "Crossing stop line during red signal"
+    
+  OVERSPEEDING_AVERAGE:
+    code: "SP01"
+    name: "Average Speed Violation"
+    base_fine: 2000
+    severity: "high"
+    description: "Exceeding average speed limit between checkpoints"
+    # Progressive fine structure
+    fine_calculation:
+      - excess_speed_upto: 10
+        fine: 1000
+      - excess_speed_upto: 20
+        fine: 2000
+      - excess_speed_upto: 30
+        fine: 3000
+      - excess_speed_above: 30
+        fine: 5000
+        
+  NO_HELMET:
+    code: "HM01"
+    name: "No Helmet (Two-Wheeler)"
+    base_fine: 1000
+    severity: "medium"
+    description: "Riding two-wheeler without helmet"
+    
+  WRONG_LANE:
+    code: "LN01"
+    name: "Wrong Lane Violation"
+    base_fine: 500
+    severity: "medium"
+    
+# Modifiers based on external factors
+fine_multipliers:
+  repeat_offender_30_days: 1.5
+  repeat_offender_90_days: 2.0
+  night_time: 1.5  # 10 PM - 6 AM
+  school_zone: 2.0

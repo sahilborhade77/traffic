@@ -1,0 +1,91 @@
+# Docker build context ignore file
+# Speeds up Docker builds by excluding unnecessary files
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.pydevproject
+.settings
+*.sublime-project
+*.sublime-workspace
+
+# Testing
+.pytest_cache
+htmlcov
+.mypy_cache
+.dmypy.json
+dmypy.json
+
+# Documentation
+docs/_build
+site/
+
+# Temp files
+*.log
+*.tmp
+tmp/
+temp/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# CI/CD
+.github/workflows/
+.gitlab-ci.yml
+.travis.yml
+
+# Development files
+*.md
+!README.md
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+.editorconfig
+.pre-commit-config.yaml
+
+# Test files (keep if needed for test containers)
+# tests/
+
+# Notebooks
+*.ipynb
+.ipynb_checkpoints
+
+# Optional data (use volumes instead)
+data/
+models/*.pt
+models/*.onnx

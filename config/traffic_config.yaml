@@ -1,0 +1,83 @@
+# Traffic Management System Configuration
+# Environment variables can be substituted using ${VAR_NAME:default_value}
+
+system_name: "Traffic Management System"
+log_level: "INFO"
+
+# Data directories
+data_dir: "data"
+model_dir: "models"
+config_dir: "config"
+
+# Camera Configuration
+cameras:
+  - name: "North Lane Camera"
+    url: "${CAMERA_NORTH_URL:rtsp://192.168.1.100:554/stream}"
+    lane: "North"
+    fps: 30
+    resolution: [1280, 720]
+    enabled: true
+  
+  - name: "South Lane Camera"
+    url: "${CAMERA_SOUTH_URL:rtsp://192.168.1.101:554/stream}"
+    lane: "South"
+    fps: 30
+    resolution: [1280, 720]
+    enabled: true
+  
+  - name: "East Lane Camera"
+    url: "${CAMERA_EAST_URL:rtsp://192.168.1.102:554/stream}"
+    lane: "East"
+    fps: 30
+    resolution: [1280, 720]
+    enabled: true
+  
+  - name: "West Lane Camera"
+    url: "${CAMERA_WEST_URL:rtsp://192.168.1.103:554/stream}"
+    lane: "West"
+    fps: 30
+    resolution: [1280, 720]
+    enabled: true
+
+# YOLO Model Configuration
+model:
+  yolo_path: "${YOLO_MODEL_PATH:models/yolov8n.pt}"
+  detection_confidence: 0.5
+  nms_threshold: 0.45
+  device: "${MODEL_DEVICE:cuda}"
+  batch_size: 4
+
+# Traffic Signal Configuration
+signal:
+  mode: "adaptive"  # fixed or adaptive
+  cycle_length: 120  # seconds
+  min_green: 20     # seconds
+  max_green: 80     # seconds
+  yellow_duration: 5
+  all_red_duration: 1
+
+# Database Configuration
+database:
+  type: "${DB_TYPE:sqlite}"  # sqlite or postgresql
+  # SQLite settings
+  sqlite_path: "data/traffic.db"
+  
+  # PostgreSQL settings (used if type is postgresql)
+  host: "${DB_HOST:localhost}"
+  port: ${DB_PORT:5432}
+  user: "${DB_USER:traffic_user}"
+  password: "${DB_PASSWORD:traffic_pass}"
+  database: "${DB_NAME:traffic_db}"
+  
+  # Connection pool settings
+  pool_size: 10
+  max_overflow: 20
+  echo: false
+
+# Analytics and Monitoring
+analytics:
+  enabled: true
+  prometheus_enabled: true
+  prometheus_port: 9090
+  metrics_interval: 60  # seconds
+  log_traffic_flow: true

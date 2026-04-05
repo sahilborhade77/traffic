@@ -1,8 +1,8 @@
-# Traffic Intelligence System (TIS)
+# 🚦 Traffic Intelligence System (TIS) v2.0
 
-An advanced AI-powered traffic management system using computer vision, reinforcement learning, and predictive analytics to optimize urban traffic flow.
+An industrial-grade AI-powered traffic enforcement and management system using computer vision, ANPR, average speed detection, and predictive analytics to optimize urban traffic flow and automatically issue E-Challans.
 
-**Status:** Production-Ready | **Version:** 1.0.0 | **License:** MIT
+**Status:** Production-Ready | **Version:** 2.0.0 | **License:** MIT | **GPU:** RTX 2050+ (4GB VRAM)
 
 ---
 
@@ -34,14 +34,26 @@ Traffic Intelligence System is a comprehensive solution for intelligent traffic 
 - **RESTful API** for integration with external systems
 - **Real-time Dashboard** with WebSocket streaming
 
-### Key Features
+### 🔴 Enforcement Features (v2.0)
 
-✅ **Real-time Processing** - 30+ FPS on single GPU  
-✅ **High Accuracy** - 95%+ vehicle detection with YOLOv8  
-✅ **Scalable** - Load balancing across multiple GPU instances  
-✅ **Resilient** - Automatic failover and error recovery  
-✅ **Observable** - Comprehensive logging and metrics  
-✅ **Extensible** - Modular architecture with plugin support
+✅ **Indian ANPR** — EasyOCR tuned for MH/KA/DL plate formats  
+✅ **Red Light Violation** — HSV signal detection + grandfathering logic  
+✅ **Average Speed Enforcement** — Time-over-distance across camera pairs  
+✅ **Wrong-Way Driver Detection** — DeepSORT direction vector analysis  
+✅ **Triple Riding Detection** — Person count IoU on motorcycle bboxes  
+✅ **Mobile Phone Detection** — COCO class 67 on driver area crops  
+✅ **Repeat Offender Engine** — 30/90-day multipliers from violations.yaml  
+✅ **E-Challan PDF** — RTO-format PDF with evidence image + QR code  
+✅ **Night Vision Enhancement** — CLAHE + Gamma for low-light accuracy  
+✅ **Multi-Camera Asyncio** — Concurrent RTSP streams, shared YOLO model  
+
+### ⚡ System Features
+
+✅ **Shared ModelManager** — Single YOLOv8n FP16 across ALL detectors (≤4GB VRAM)  
+✅ **FastAPI Dashboard** — Live violation feed, plate search, payment updates  
+✅ **Alembic Migrations** — Professional DB schema versioning  
+✅ **Congestion Heatmap** — Real-time Gaussian trajectory overlay  
+✅ **PostgreSQL + SQLite** — Auto-detect DB from `DATABASE_URL` env var
 
 ---
 

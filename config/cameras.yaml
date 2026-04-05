@@ -1,0 +1,47 @@
+# PART 5: Configuration Files - Cameras and Zones
+
+# Individual Camera Nodes
+cameras:
+  CAM_NORTH_ENTRY:
+    id: "CAM_001"
+    name: "North Entry"
+    location: "Shivaji Road & FC Road Junction - North"
+    latitude: 18.5204
+    longitude: 73.8567
+    type: "entry"
+    paired_with: "CAM_002"
+    distance_to_pair_km: 2.5
+    speed_limit_kmh: 60
+    rtsp_url: "rtsp://admin:password@192.168.1.101/stream1"
+    
+    # ROI for violation detection (x, y coordinates)
+    roi_polygon: [[100, 400], [600, 400], [600, 650], [100, 650]]
+    stop_line_y: 450
+    
+    # Signal detection ROI: [x, y, w, h]
+    signal_roi: [50, 50, 100, 200]
+    
+  CAM_NORTH_EXIT:
+    id: "CAM_002"
+    name: "North Exit"
+    location: "Shivaji Road & FC Road Junction - 2.5km North"
+    latitude: 18.5425
+    longitude: 73.8570
+    type: "exit"
+    paired_with: "CAM_001"
+    rtsp_url: "rtsp://admin:password@192.168.1.102/stream1"
+  
+  CAM_SOUTH_JUNCTION:
+    id: "CAM_003"
+    name: "South Junction"
+    type: "junction"
+    rtsp_url: "rtsp://admin:password@192.168.1.103/stream1"
+
+# Average Speed Enforcement Zones
+speed_zones:
+  ZONE_NORTH:
+    entry_camera: "CAM_001"
+    exit_camera: "CAM_002"
+    distance_km: 2.5
+    speed_limit_kmh: 60
+    tolerance_kmh: 5

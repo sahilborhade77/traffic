@@ -1,0 +1,16 @@
+# Multi-Camera Calibration Data
+CAM_01_NORTH_HUB:
+  perspective_points: [[450, 50], [550, 50], [600, 250], [400, 250]]
+  roi_zones:
+    North: [[450, 50], [550, 50], [600, 250], [400, 250]]
+    South: [[400, 700], [600, 700], [650, 950], [350, 950]]
+  min_confidence: 0.45
+  use_augmentation: true
+
+CAM_02_WEST_ENTRY:
+  perspective_points: [[100, 100], [900, 100], [900, 900], [100, 900]]
+  roi_zones:
+    East: [[700, 420], [950, 420], [980, 580], [680, 580]]
+    West: [[50, 420], [300, 420], [300, 580], [50, 580]]
+  min_confidence: 0.50
+  use_augmentation: false

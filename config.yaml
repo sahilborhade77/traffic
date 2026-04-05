@@ -1,0 +1,38 @@
+# Smart AI Traffic System Configuration
+
+# 📂 Data Paths
+paths:
+  input_video: "data/traffic_sample.mp4"
+  output_json: "data/traffic_analytics.json"
+  output_csv: "data/traffic_analytics.csv"
+  model_yolo: "yolov8s.pt"
+  model_ppo: "models/traffic_signal_ppo_agent"
+  model_lstm: "models/traffic_flow_lstm.pt"
+
+# 👁️ Vision Settings
+vision:
+  confidence_threshold: 0.25
+  iou_threshold: 0.45
+  img_size: 640
+  tracker_type: "botsort.yaml"
+  enable_perspective: false
+  roi_points: [[100, 100], [900, 100], [900, 900], [100, 900]]
+
+# 🚦 Signal Control Settings
+control:
+  min_green: 15
+  max_green: 90
+  yellow_time: 3
+  all_red_time: 2
+
+# 🧠 Prediction Settings
+prediction:
+  history_window: 60
+  forecast_horizon: 12
+  batch_size: 32
+
+# 🌍 Environmental Adaptation
+weather:
+  enable_auto_adaptation: true
+  brightness_threshold: 60
+  blur_threshold: 100

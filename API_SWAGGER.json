@@ -1,0 +1,824 @@
+{
+  "openapi": "3.0.2",
+  "info": {
+    "title": "Traffic Management System API",
+    "description": "Comprehensive REST API for intelligent traffic management and monitoring",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Support Team",
+      "email": "support@traffic-system.com"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.traffic-system.com",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "System Health Check",
+        "description": "Check if the system is operational and responsive",
+        "operationId": "health_check",
+        "responses": {
+          "200": {
+            "description": "System is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status": {
+      "get": {
+        "tags": ["Monitoring"],
+        "summary": "System Status",
+        "description": "Get comprehensive system status and metrics",
+        "operationId": "get_system_status",
+        "responses": {
+          "200": {
+            "description": "System status retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Readiness Check",
+        "description": "Check if the system is ready to accept requests",
+        "operationId": "readiness_check",
+        "responses": {
+          "200": {
+            "description": "System is ready"
+          }
+        }
+      }
+    },
+    "/detections": {
+      "get": {
+        "tags": ["Detections"],
+        "summary": "List Detections",
+        "description": "Get paginated list of vehicle detections",
+        "operationId": "list_detections",
+        "parameters": [
+          {
+            "name": "lane",
+            "in": "query",
+            "description": "Filter by lane",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "description": "Start time filter",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "description": "End time filter",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Items per page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated detections",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/detections/{detection_id}": {
+      "get": {
+        "tags": ["Detections"],
+        "summary": "Get Detection Details",
+        "description": "Get detailed information about a specific vehicle detection",
+        "operationId": "get_detection",
+        "parameters": [
+          {
+            "name": "detection_id",
+            "in": "path",
+            "description": "Detection ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detection details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleDetection"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Detection not found"
+          }
+        }
+      }
+    },
+    "/signals": {
+      "get": {
+        "tags": ["Signals"],
+        "summary": "Get All Signal States",
+        "description": "Get current state of all traffic signals",
+        "operationId": "get_all_signals",
+        "responses": {
+          "200": {
+            "description": "All signal states",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SignalStateResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/signals/{lane}": {
+      "get": {
+        "tags": ["Signals"],
+        "summary": "Get Signal State",
+        "description": "Get current state of a specific traffic signal",
+        "operationId": "get_signal_state",
+        "parameters": [
+          {
+            "name": "lane",
+            "in": "path",
+            "description": "Lane name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Signal state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalStateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/signals/{lane}/control": {
+      "post": {
+        "tags": ["Signals"],
+        "summary": "Control Signal",
+        "description": "Manually control a specific traffic signal",
+        "operationId": "control_signal",
+        "parameters": [
+          {
+            "name": "lane",
+            "in": "path",
+            "description": "Lane name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "description": "Desired signal state",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SignalState"
+            }
+          },
+          {
+            "name": "duration",
+            "in": "query",
+            "description": "Duration in seconds",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Control action confirmed"
+          }
+        }
+      }
+    },
+    "/metrics/{lane}": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Get Lane Metrics",
+        "description": "Get real-time traffic metrics for a specific lane",
+        "operationId": "get_lane_metrics",
+        "parameters": [
+          {
+            "name": "lane",
+            "in": "path",
+            "description": "Lane name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lane metrics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrafficMetrics"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics/system/aggregate": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "System-wide Metrics",
+        "description": "Get aggregated metrics across all lanes",
+        "operationId": "get_system_metrics",
+        "parameters": [
+          {
+            "name": "time_window",
+            "in": "query",
+            "description": "Time window in seconds",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 3600
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "System metrics"
+          }
+        }
+      }
+    },
+    "/analytics/hourly": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Hourly Statistics",
+        "description": "Get hourly traffic statistics",
+        "operationId": "get_hourly_statistics",
+        "parameters": [
+          {
+            "name": "lane",
+            "in": "query",
+            "description": "Filter by lane",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "description": "Number of hours to retrieve",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 24,
+              "minimum": 1,
+              "maximum": 168
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hourly statistics"
+          }
+        }
+      }
+    },
+    "/violations": {
+      "get": {
+        "tags": ["Violations"],
+        "summary": "List Violations",
+        "description": "Get paginated list of traffic violations",
+        "operationId": "list_violations",
+        "parameters": [
+          {
+            "name": "violation_type",
+            "in": "query",
+            "description": "Filter by type",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ViolationType"
+            }
+          },
+          {
+            "name": "processed",
+            "in": "query",
+            "description": "Filter by processed status",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "min_severity",
+            "in": "query",
+            "description": "Minimum severity level",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1,
+              "maximum": 5
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Items per page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated violations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/violations/{violation_id}/process": {
+      "post": {
+        "tags": ["Violations"],
+        "summary": "Mark Violation as Processed",
+        "description": "Mark a violation record as processed",
+        "operationId": "process_violation",
+        "parameters": [
+          {
+            "name": "violation_id",
+            "in": "path",
+            "description": "Violation ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            }
+          },
+          {
+            "name": "notes",
+            "in": "query",
+            "description": "Processing notes",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Violation processed"
+          }
+        }
+      }
+    },
+    "/config/signals": {
+      "get": {
+        "tags": ["Configuration"],
+        "summary": "Get Signal Configuration",
+        "description": "Get current signal timing configuration",
+        "operationId": "get_signal_config",
+        "responses": {
+          "200": {
+            "description": "Signal configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalTimingConfig"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Configuration"],
+        "summary": "Update Signal Configuration",
+        "description": "Update signal timing configuration",
+        "operationId": "update_signal_config",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignalTimingConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Configuration updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalTimingConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SignalState": {
+        "enum": ["green", "yellow", "red"],
+        "type": "string",
+        "title": "SignalState"
+      },
+      "ViolationType": {
+        "enum": ["red_light", "speeding", "illegal_turn", "other"],
+        "type": "string",
+        "title": "ViolationType"
+      },
+      "VehicleClass": {
+        "enum": ["car", "truck", "motorcycle", "bus", "other"],
+        "type": "string",
+        "title": "VehicleClass"
+      },
+      "ControlMode": {
+        "enum": ["fixed", "adaptive", "manual"],
+        "type": "string",
+        "title": "ControlMode"
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": ["status", "timestamp", "version", "uptime_seconds"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "uptime_seconds": {
+            "type": "number",
+            "title": "Uptime Seconds"
+          }
+        }
+      },
+      "VehicleDetection": {
+        "type": "object",
+        "required": ["detection_id", "timestamp", "lane", "vehicle_class", "confidence", "bounding_box"],
+        "properties": {
+          "detection_id": {
+            "type": "integer",
+            "title": "Detection ID"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "lane": {
+            "type": "string",
+            "title": "Lane"
+          },
+          "vehicle_class": {
+            "$ref": "#/components/schemas/VehicleClass"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "title": "Confidence"
+          },
+          "bounding_box": {
+            "type": "object",
+            "title": "Bounding Box"
+          },
+          "speed": {
+            "type": "number",
+            "title": "Speed"
+          },
+          "vehicle_id": {
+            "type": "string",
+            "title": "Vehicle ID"
+          }
+        }
+      },
+      "SignalStateResponse": {
+        "type": "object",
+        "required": ["lane", "state", "time_remaining", "cycle_position"],
+        "properties": {
+          "lane": {
+            "type": "string",
+            "title": "Lane"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SignalState"
+          },
+          "time_remaining": {
+            "type": "integer",
+            "title": "Time Remaining"
+          },
+          "cycle_position": {
+            "type": "integer",
+            "title": "Cycle Position"
+          }
+        }
+      },
+      "TrafficMetrics": {
+        "type": "object",
+        "required": ["timestamp", "lane", "vehicle_count", "congestion_level", "average_speed", "throughput", "wait_time"],
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "lane": {
+            "type": "string",
+            "title": "Lane"
+          },
+          "vehicle_count": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Vehicle Count"
+          },
+          "congestion_level": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "title": "Congestion Level"
+          },
+          "average_speed": {
+            "type": "number",
+            "title": "Average Speed"
+          },
+          "throughput": {
+            "type": "integer",
+            "title": "Throughput"
+          },
+          "wait_time": {
+            "type": "number",
+            "title": "Wait Time"
+          }
+        }
+      },
+      "ViolationRecord": {
+        "type": "object",
+        "required": ["violation_id", "timestamp", "lane", "violation_type", "severity", "processed"],
+        "properties": {
+          "violation_id": {
+            "type": "integer",
+            "title": "Violation ID"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "lane": {
+            "type": "string",
+            "title": "Lane"
+          },
+          "vehicle_id": {
+            "type": "string",
+            "title": "Vehicle ID"
+          },
+          "violation_type": {
+            "$ref": "#/components/schemas/ViolationType"
+          },
+          "severity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "title": "Severity"
+          },
+          "speed": {
+            "type": "number",
+            "title": "Speed"
+          },
+          "processed": {
+            "type": "boolean",
+            "title": "Processed"
+          }
+        }
+      },
+      "SignalTimingConfig": {
+        "type": "object",
+        "required": ["mode", "cycle_length", "min_green", "max_green", "yellow_duration"],
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/ControlMode"
+          },
+          "cycle_length": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 240,
+            "title": "Cycle Length"
+          },
+          "min_green": {
+            "type": "integer",
+            "minimum": 10,
+            "title": "Min Green"
+          },
+          "max_green": {
+            "type": "integer",
+            "maximum": 200,
+            "title": "Max Green"
+          },
+          "yellow_duration": {
+            "type": "integer",
+            "minimum": 3,
+            "title": "Yellow Duration"
+          }
+        }
+      },
+      "SystemStatus": {
+        "type": "object",
+        "required": ["status", "uptime_seconds", "cpu_usage", "memory_usage", "active_cameras", "database_latency_ms", "detections_per_second"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "uptime_seconds": {
+            "type": "number",
+            "title": "Uptime Seconds"
+          },
+          "cpu_usage": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "title": "CPU Usage"
+          },
+          "memory_usage": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "title": "Memory Usage"
+          },
+          "gpu_usage": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "title": "GPU Usage"
+          },
+          "active_cameras": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Active Cameras"
+          },
+          "database_latency_ms": {
+            "type": "number",
+            "title": "Database Latency"
+          },
+          "detections_per_second": {
+            "type": "number",
+            "title": "Detections Per Second"
+          }
+        }
+      },
+      "PageResponse": {
+        "type": "object",
+        "required": ["items", "total", "page", "page_size", "total_pages"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {},
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "total_pages": {
+            "type": "integer",
+            "title": "Total Pages"
+          }
+        }
+      }
+    }
+  }
+}

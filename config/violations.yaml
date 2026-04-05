@@ -33,6 +33,27 @@ violation_types:
     severity: "medium"
     description: "Riding two-wheeler without helmet"
     
+  WRONG_WAY:
+    code: "WW01"
+    name: "Wrong Way Driving"
+    base_fine: 5000
+    severity: "critical"
+    description: "Driving against traffic flow direction"
+
+  TRIPLE_RIDING:
+    code: "TR01"
+    name: "Triple Riding (Two-Wheeler)"
+    base_fine: 1000
+    severity: "high"
+    description: "More than 2 people on a motorcycle"
+
+  PHONE_WHILE_DRIVING:
+    code: "PH01"
+    name: "Cell Phone Use While Driving"
+    base_fine: 1000
+    severity: "high"
+    description: "Driver using a mobile device"
+
   WRONG_LANE:
     code: "LN01"
     name: "Wrong Lane Violation"

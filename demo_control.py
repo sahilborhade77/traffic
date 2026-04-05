@@ -5,13 +5,13 @@ import numpy as np
 import logging
 import torch
 from src.control.environment import TrafficSignalEnv
-from src.control.agents import RuleBasedAgent, DQNAgent
+from src.control.dqn_agent import RuleBasedAgent, DQNAgent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
-def run_training(env, agent, num_episodes=50):
+def run_training(env, agent, num_episodes=20):
     """
     Train the DQN Agent by interacting with the environment.
     """
@@ -19,17 +19,17 @@ def run_training(env, agent, num_episodes=50):
     history = []
     
     for episode in range(num_episodes):
-        state = env.reset()
+        state, _ = env.reset()
         total_reward = 0
         done = False
-        step = 0
         
         while not done:
             # 1. Action
             action = agent.get_action(state, train=True)
             
-            # 2. Step
-            next_state, reward, done, info = env.step(action)
+            # 2. Step (Gymnasium returns 5 values)
+            next_state, reward, terminated, truncated, info = env.step(action)
+            done = terminated or truncated
             
             # 3. Memory & Update
             agent.store_experience(state, action, reward, next_state, done)
@@ -37,10 +37,9 @@ def run_training(env, agent, num_episodes=50):
             
             state = next_state
             total_reward += reward
-            step += 1
             
         history.append({'episode': episode+1, 'total_reward': total_reward, 'epsilon': agent.epsilon})
-        if (episode+1) % 10 == 0:
+        if (episode+1) % 5 == 0:
             logger.info(f"Episode {episode+1} -> Reward: {total_reward:.2f} | Epsilon: {agent.epsilon:.2f}")
             
     return pd.DataFrame(history)
@@ -50,7 +49,7 @@ def run_evaluation(env, agent, mode_name="DQN"):
     Evaluate an agent without training (exploration = 0).
     """
     logger.info(f"Evaluating {mode_name} Agent...")
-    state = env.reset()
+    state, _ = env.reset()
     total_reward = 0
     done = False
     stats = []
@@ -58,19 +57,22 @@ def run_evaluation(env, agent, mode_name="DQN"):
     while not done:
         # Use get_action(state, train=False) for testing
         if hasattr(agent, 'get_action'): 
-            # Check if it takes "train" parameter (DQN) or not (RuleBased)
             try:
                 action = agent.get_action(state, train=False)
             except TypeError:
                 action = agent.get_action(state)
         
-        next_state, reward, done, info = env.step(action)
+        next_state, reward, terminated, truncated, info = env.step(action)
+        done = terminated or truncated
+        
+        # Calculate a total_queue since info might be empty or different
+        total_queue = np.sum(next_state[:4])
         
         stats.append({
             'mode': mode_name,
             'step': env.step_count,
             'reward': reward,
-            'total_queue': info['total_queue'],
+            'total_queue': total_queue,
             'green_lane': action
         })
         
@@ -82,8 +84,8 @@ def run_evaluation(env, agent, mode_name="DQN"):
 
 def main():
     parser = argparse.ArgumentParser(description="Module 2: DQN Adaptive Signal Control")
-    parser.add_argument("--train", action="store_true", help="Perform training before evaluation")
-    parser.add_argument("--episodes", type=int, default=100, help="Number of training episodes")
+    parser.add_argument("--train", action="store_true", default=True, help="Perform training before evaluation")
+    parser.add_argument("--episodes", type=int, default=20, help="Number of training episodes")
     parser.add_argument("--save", default="models/dqn_traffic.pth", help="Path to save trained model")
     
     args = parser.parse_args()
@@ -91,8 +93,8 @@ def main():
     os.makedirs('data', exist_ok=True)
 
     env = TrafficSignalEnv(num_lanes=4)
-    state_dim = env.get_state().shape[0]
-    action_dim = env.num_lanes
+    state_dim = env.observation_space.shape[0]
+    action_dim = env.action_space.n
     
     # 1. DQN Agent Setup
     dqn_agent = DQNAgent(state_dim, action_dim)

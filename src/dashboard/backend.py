@@ -14,6 +14,16 @@ import numpy as np
 logger = logging.getLogger(__name__)
 app = FastAPI(title="Smart AI Traffic Management Hub")
 
+@app.get("/")
+async def root():
+    """Welcome endpoint for the API Hub."""
+    return {
+        "status": "online",
+        "message": "Smart AI Traffic API Hub is alive.",
+        "documentation": "/docs",
+        "dashboard_ui": "Run 'streamlit run src/dashboard/app.py' to view the UI"
+    }
+
 class ConnectionManager:
     """Manages all active WebSocket connections for real-time broadcasts."""
     def __init__(self):

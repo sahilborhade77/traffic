@@ -431,47 +431,170 @@ GET /api/health
 
 ## 🏗️ Architecture
 
-### System Layers
+### PART 1: System Architecture Overview
 
-```
-┌─────────────────────────────────────────────────────────┐
-│              UI Layer (Web, Mobile Apps)                 │
-├─────────────────────────────────────────────────────────┤
-│      Dashboard (Streamlit) | REST API (FastAPI)          │
-├─────────────────────────────────────────────────────────┤
-│  Analytics | Caching | Logging | Load Balancing         │
-├─────────────────────────────────────────────────────────┤
-│  ML Pipeline: Classification | Prediction | Anomaly Det. │
-├─────────────────────────────────────────────────────────┤
-│  Core Services: Control | RL Agent | Signal Timing       │
-├─────────────────────────────────────────────────────────┤
-│  Vision: Detector | Tracker | Lane Learning             │
-├─────────────────────────────────────────────────────────┤
-│         Camera Input (RTSP, Files, USB)                  │
-└─────────────────────────────────────────────────────────┘
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    TRAFFIC INTELLIGENCE SYSTEM                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │   Camera A   │  │   Camera B   │  │   Camera N   │          │
+│  │  (Entry)     │  │  (Mid/Exit)  │  │  (Junction)  │          │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
+│         │                  │                  │                   │
+│         └──────────────────┴──────────────────┘                  │
+│                            │                                      │
+│                            ▼                                      │
+│         ┌──────────────────────────────────────┐                │
+│         │   MODULE 1: DETECTION ENGINE         │                │
+│         │   - YOLOv8 Vehicle Detection         │                │
+│         │   - Classification (car/bike/truck)  │                │
+│         │   - Bounding box coordinates         │                │
+│         └──────────────┬───────────────────────┘                │
+│                        │                                          │
+│                        ▼                                          │
+│         ┌──────────────────────────────────────┐                │
+│         │   MODULE 2: TRACKING & RE-ID         │                │
+│         │   - DeepSORT Multi-Object Tracking   │                │
+│         │   - Track ID assignment              │                │
+│         │   - Cross-camera re-identification   │                │
+│         └──────────────┬───────────────────────┘                │
+│                        │                                          │
+│                        ▼                                          │
+│         ┌──────────────────────────────────────┐                │
+│         │   MODULE 3: ANPR (License Plate)     │                │
+│         │   - Plate detection (YOLOv8-tiny)    │                │
+│         │   - OCR (EasyOCR/PaddleOCR)          │                │
+│         │   - Plate cleaning & validation      │                │
+│         └──────────────┬───────────────────────┘                │
+│                        │                                          │
+│                        ▼                                          │
+│         ┌──────────────────────────────────────┐                │
+│         │   MODULE 4: VIOLATION DETECTION      │                │
+│         │   - Red light violation              │                │
+│         │   - Wrong lane detection             │                │
+│         │   - Helmet detection (2-wheelers)    │                │
+│         │   - Stop line crossing               │                │
+│         └──────────────┬───────────────────────┘                │
+│                        │                                          │
+│                        ▼                                          │
+│         ┌──────────────────────────────────────┐                │
+│         │   MODULE 5: AVERAGE SPEED DETECTION  │                │
+│         │   - Entry timestamp capture          │                │
+│         │   - Exit timestamp capture           │                │
+│         │   - Speed calculation                │                │
+│         │   - Overspeeding detection           │                │
+│         └──────────────┬───────────────────────┘                │
+│                        │                                          │
+│                        ▼                                          │
+│         ┌──────────────────────────────────────┐                │
+│         │   MODULE 6: EVIDENCE & FINE ENGINE   │                │
+│         │   - Screenshot capture               │                │
+│         │   - Video clip extraction            │                │
+│         │   - Fine calculation                 │                │
+│         │   - E-challan generation             │                │
+│         └──────────────┬───────────────────────┘                │
+│                        │                                          │
+│                        ▼                                          │
+│         ┌──────────────────────────────────────┐                │
+│         │   DATABASE & NOTIFICATION            │                │
+│         │   - PostgreSQL (violations)          │                │
+│         │   - MongoDB (evidence images)        │                │
+│         │   - SMS/Email alerts                 │                │
+│         └──────────────────────────────────────┘                │
+│                                                                   │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Module Structure
 
-```
-traffic_project/
+### PART 2: Updated Project Structure
+
+```text
+traffic/
+│
 ├── src/
-│   ├── vision/              # Detection, tracking, incidents
-│   ├── prediction/          # LSTM, congestion, anomalies
-│   ├── control/             # RL agents, signal timing
-│   ├── analytics/           # Data aggregation, metrics
-│   ├── dashboard/           # API, WebSocket, UI
-│   ├── database/            # SQLAlchemy ORM, persistence
-│   └── utils/               # Helpers, config, logging
-├── tests/                   # Unit and integration tests
-├── models/                  # ML model weights
-├── data/                    # Analytics outputs
-├── config/                  # Configuration files
-├── requirements.txt         # Python dependencies
-├── setup.sh / setup.ps1     # Environment setup scripts
-├── main_pipeline.py         # Entry point
-└── README.md               # This file
+│   ├── detection/
+│   │   ├── vehicle_detector.py       # YOLOv8 vehicle detection
+│   │   ├── plate_detector.py         # ANPR plate detection
+│   │   └── helmet_detector.py        # Helmet detection for bikes
+│   │
+│   ├── tracking/
+│   │   ├── deepsort_tracker.py       # DeepSORT implementation
+│   │   ├── vehicle_reid.py           # Cross-camera re-identification
+│   │   └── track_manager.py          # Track lifecycle management
+│   │
+│   ├── ocr/
+│   │   ├── plate_ocr.py              # OCR engine (EasyOCR/Paddle)
+│   │   ├── plate_validator.py        # Indian plate format validation
+│   │   └── plate_cleaner.py          # Image preprocessing
+│   │
+│   ├── violations/
+│   │   ├── red_light_detector.py     # Red light violation
+│   │   ├── speed_enforcer.py         # Average speed calculation
+│   │   ├── lane_violation.py         # Wrong lane detection
+│   │   ├── helmet_violation.py       # No-helmet detection
+│   │   └── violation_types.py        # Enum of violation types
+│   │
+│   ├── evidence/
+│   │   ├── evidence_manager.py       # Screenshot & video capture
+│   │   ├── image_annotator.py        # Draw bboxes, timestamps
+│   │   └── video_clipper.py          # Extract 10-sec clips
+│   │
+│   ├── database/
+│   │   ├── models.py                 # SQLAlchemy models
+│   │   ├── violation_db.py           # Violation CRUD operations
+│   │   ├── vehicle_db.py             # Vehicle registry
+│   │   └── fine_calculator.py        # Fine amount rules
+│   │
+│   ├── notification/
+│   │   ├── sms_sender.py             # SMS via Twilio/MSG91
+│   │   ├── email_sender.py           # Email notifications
+│   │   └── echallan_generator.py     # PDF e-challan creation
+│   │
+│   └── utils/
+│       ├── config.py                 # Configuration management
+│       ├── roi_manager.py            # ROI definitions
+│       └── camera_calibration.py     # Camera positions & distances
+│
+├── models/
+│   ├── yolov8n.pt                    # Vehicle detection model
+│   ├── yolov8n_plate.pt              # License plate detection
+│   ├── helmet_model.pt               # Helmet detection model
+│   └── deepsort_weights/             # DeepSORT feature extractor
+│
+├── config/
+│   ├── cameras.yaml                  # Camera configurations
+│   ├── violations.yaml               # Violation rules & fines
+│   └── speed_zones.yaml              # Speed enforcement zones
+│
+├── database/
+│   ├── migrations/                   # Database migrations
+│   └── init_db.sql                   # Initial schema
+│
+├── tests/
+│   ├── test_anpr.py
+│   ├── test_speed_detection.py
+│   └── test_violations.py
+│
+├── scripts/
+│   ├── setup_database.py             # Initialize DB
+│   ├── calibrate_cameras.py          # Camera calibration tool
+│   └── import_vehicle_registry.py    # Import RTO data
+│
+├── notebooks/
+│   ├── anpr_testing.ipynb
+│   └── speed_enforcement_analysis.ipynb
+│
+├── docker/
+│   ├── Dockerfile
+│   └── docker-compose.yml
+│
+├── requirements.txt
+├── README.md
+└── main.py                           # Main application entry
 ```
+
 
 ---
 

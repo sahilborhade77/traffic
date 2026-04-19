@@ -17,8 +17,40 @@ st.set_page_config(
 # --- App Styling ---
 st.markdown("""
 <style>
-    .main { background-color: #f8f9fa; }
-    .metric-card { background-color: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #dee2e6; }
+    /* Main container styling */
+    .stApp {
+        background: radial-gradient(circle at top right, #1e293b, #0f172a);
+    }
+    
+    /* Header styling */
+    h1 {
+        background: linear-gradient(90deg, #38bdf8, #818cf8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800 !important;
+        letter-spacing: -1px;
+    }
+    
+    /* Metric card styling (Glassmorphism) */
+    [data-testid="stMetric"] {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 1.5rem;
+        border-radius: 16px;
+        backdrop-filter: blur(12px);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease;
+    }
+    
+    [data-testid="stMetric"]:hover {
+        transform: translateY(-5px);
+        border-color: rgba(56, 189, 248, 0.4);
+    }
+
+    /* Delta colors */
+    [data-testid="stMetricDelta"] svg {
+        display: none;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -79,7 +111,14 @@ with content_col1:
         fig = px.line(df_analytics, x='frame_id', y=[c for c in df_analytics.columns if 'density' in c],
                       title="Lane Wise Vehicle Density over Time",
                       labels={"value": "Vehicle Count", "frame_id": "Timeline"})
-        fig.update_layout(template="plotly_white", hovermode="x unified")
+        fig.update_layout(
+            template="plotly_dark", 
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)', 
+            hovermode="x unified",
+            margin=dict(l=20, r=20, t=50, b=20),
+            colorway=['#38bdf8', '#10b981', '#f43f5e', '#fbbf24']
+        )
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("No live counts found in data/traffic_analytics.csv. Run Module 1 first!")
@@ -92,7 +131,13 @@ with content_col2:
         st.write("Comparing AI (DQN) vs Rule-Based (LQF) performance")
         fig_perf = px.box(df_perf, x='mode', y='total_queue', color='mode',
                           title="Queue Mitigation Efficiency")
-        fig_perf.update_layout(showlegend=False)
+        fig_perf.update_layout(
+            template="plotly_dark",
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            showlegend=False,
+            margin=dict(l=20, r=20, t=50, b=20)
+        )
         st.plotly_chart(fig_perf, use_container_width=True)
     else:
         st.info("Performance logs not available. Evaluating DQN...")
@@ -110,7 +155,15 @@ if df_preds is not None:
         fig_pred = go.Figure()
         fig_pred.add_trace(go.Scatter(y=df_preds['Actual'], name='Measured Traffic', line=dict(color='black', dash='dot')))
         fig_pred.add_trace(go.Scatter(y=df_preds['LSTM_Pred'], name='LSTM AI Forecast', line=dict(color='orange')))
-        fig_pred.update_layout(title="Future Traffic Prediction (Next Window)", xaxis_title="Time Steps", yaxis_title="Counts")
+        fig_pred.update_layout(
+            template="plotly_dark",
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            title="Future Traffic Prediction (Next Window)", 
+            xaxis_title="Time Steps", 
+            yaxis_title="Counts",
+            margin=dict(l=20, r=20, t=50, b=20)
+        )
         st.plotly_chart(fig_pred, use_container_width=True)
     with tab2:
         st.dataframe(df_preds.tail(10), use_container_width=True)

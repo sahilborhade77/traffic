@@ -6,12 +6,13 @@ import logging
 from collections import deque
 
 from src.utils.config import CONFIG
-from src.vision.detector import VehicleDetector
+from src.detection.vehicle_detector import VehicleDetector
 from src.control.environment import TrafficSignalEnv
 from src.control.dqn_agent import DQNAgent
 from src.prediction.lstm_model import TrafficFlowPredictor
 
 # Setup global logger
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("TrafficPipeline")
 
 class SmartTrafficPipeline:
@@ -19,7 +20,7 @@ class SmartTrafficPipeline:
     Connected Industrial Workflow: Vision -> Prediction -> Control.
     """
     def __init__(self, dqn_path=None, lstm_path=None):
-        self.video_source = CONFIG['paths']['input_video']
+        self.video_source = CONFIG.get('paths', {}).get('input_video', 'data/traffic_sample.mp4')
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         logger.info(f"Connected Pipeline initialized. Acceleration: {self.device.upper()}")
         

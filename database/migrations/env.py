@@ -12,8 +12,8 @@ from alembic import context
 
 # Import TIS models so Alembic can detect schema changes
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-from src.database.violation_db import Base
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from src.database.models import Base
 
 # Alembic Config object — provides access to alembic.ini values
 config = context.config

@@ -35,6 +35,18 @@ build/
 output/
 traffic.db
 
+# MLflow artifacts and large directories
+mlruns/
+.streamlit/
+report/
+doc/
+temp_guide/
+temp_survey/
+
+# Logs and temp files
+*.log
+traceback.log
+
 # OS files
 .DS_Store
 Thumbs.db

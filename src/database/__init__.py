@@ -1,17 +1,13 @@
 """
-Database module for traffic management system.
-
-Provides SQLAlchemy ORM models and database utilities for:
-- Vehicle detections and observations
-- Traffic violations and incidents
-- Wait time metrics
-- Aggregated statistics (hourly/daily)
-- Signal states and control history
+Database module for traffic management system v2.0.
+Provides SQLAlchemy ORM models and database utilities.
 """
 
 from src.database.models import (
     Base,
+    Vehicle,
     VehicleDetection,
+    Violation,
     ViolationRecord,
     WaitTimeObservation,
     HourlyStatistic,
@@ -19,6 +15,13 @@ from src.database.models import (
     Lane,
     SignalState,
     TrafficSnapshot,
+    SpeedTracking,
+    CameraConfig,
+    FineRule,
+    VehicleClass,
+    ViolationType,
+    ViolationSeverity,
+    CongestionLevel,
 )
 from src.database.config import (
     DatabaseConfig,
@@ -30,7 +33,9 @@ from src.database.manager import DatabaseManager
 
 __all__ = [
     "Base",
+    "Vehicle",
     "VehicleDetection",
+    "Violation",
     "ViolationRecord",
     "WaitTimeObservation",
     "HourlyStatistic",
@@ -38,6 +43,13 @@ __all__ = [
     "Lane",
     "SignalState",
     "TrafficSnapshot",
+    "SpeedTracking",
+    "CameraConfig",
+    "FineRule",
+    "VehicleClass",
+    "ViolationType",
+    "ViolationSeverity",
+    "CongestionLevel",
     "DatabaseConfig",
     "get_database_url",
     "get_engine",

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrafficAI Core Dashboard</title>
+    <meta name="description" content="End-to-end, multi-agent AI system designed to solve urban congestion via high-performance computer vision, time-series forecasting, and reinforcement learning.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="cyber-bg">
+        <div class="cyber-grid"></div>
+        <div class="glow-orb orb-1"></div>
+        <div class="glow-orb orb-2"></div>
+    </div>
+    
+    <nav class="navbar glass-panel">
+        <div class="nav-content">
+            <div class="logo">
+                <i data-lucide="cpu" class="neon-icon"></i>
+                <span>TrafficAI <span class="accent-text">Core</span></span>
+            </div>
+            <div class="system-status">
+                <div class="status-indicator pulsing"></div>
+                <span class="status-text mono-text">SYS_ONLINE // 99.9%</span>
+            </div>
+            <div class="nav-links">
+                <a href="#dashboard" class="nav-link">Dashboard</a>
+                <a href="#pipeline" class="nav-link">Pipeline</a>
+                <a href="#features" class="nav-link">Features</a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <header class="hero">
+            <div class="hero-content fade-in-up">
+                <div class="badge cyber-border">TIS_V2.0_INITIALIZED</div>
+                <h1 class="hero-title">Smart City Intelligence<br><span class="gradient-text">Command Center</span></h1>
+                <p class="hero-subtitle">Unified 10-feature AI pipeline managing urban grids with GPU-accelerated vision, predictive forecasting, and RL-driven signal logic.</p>
+            </div>
+        </header>
+
+        <!-- Simulated Live Dashboard -->
+        <section id="dashboard" class="dashboard-section fade-in-up delay-1">
+            <div class="glass-panel main-dashboard">
+                <div class="dash-header">
+                    <h2><i data-lucide="activity"></i> Live Intersection Monitoring</h2>
+                    <div class="feed-selector">
+                        <span class="active">CAM_001 (Main St)</span>
+                        <span>CAM_002 (North Ave)</span>
+                    </div>
+                </div>
+                
+                <div class="dash-grid">
+                    <!-- Video Feed Placeholder -->
+                    <div class="video-feed cyber-border">
+                        <div class="simulated-video">
+                            <div class="overlay-ui">
+                                <span class="rec-indicator">REC</span>
+                                <span class="fps mono-text">FPS: 60.2</span>
+                            </div>
+                            <div class="scanning-bar"></div>
+                            <!-- Simulated bounding boxes will be animated via CSS/JS -->
+                            <div class="bbox bbox-1"></div>
+                            <div class="bbox bbox-2"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Metrics Sidebar -->
+                    <div class="dash-metrics">
+                        <div class="metric-card">
+                            <div class="metric-title">Active Vehicles</div>
+                            <div class="metric-value id-counter" id="active-vehicles">142</div>
+                            <div class="metric-trend up"><i data-lucide="trending-up"></i> +4%</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Avg Flow Speed</div>
+                            <div class="metric-value" id="avg-speed">42 <span class="unit">km/h</span></div>
+                            <div class="metric-trend down"><i data-lucide="trending-down"></i> -2%</div>
+                        </div>
+                        <div class="metric-card alert-state">
+                            <div class="metric-title">Detected Violations (1h)</div>
+                            <div class="metric-value gradient-text" id="violation-count">17</div>
+                            <div class="alert-log" id="alert-log">
+                                <div>[SYS] Wrong way detected (Plate: MH12**)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- The Pipeline -->
+        <section id="pipeline" class="pipeline-section">
+            <div class="section-header fade-in-up">
+                <h2>Triple-Engine <span class="gradient-text">Architecture</span></h2>
+                <p>Seamlessly fusing multi-modal AI to create self-optimizing intersections.</p>
+            </div>
+            
+            <div class="pipeline-grid">
+                <div class="pipeline-card cyber-border glass-panel fade-in-up delay-1">
+                    <div class="card-icon"><i data-lucide="eye"></i></div>
+                    <h3>1. Vision Engine</h3>
+                    <p>YOLOv8 + DeepSORT extracting high-fidelity entity data with strict VRAM management (≤4GB).</p>
+                    <div class="tech-tags">
+                        <span>Object Detection</span> <span>ANPR</span> <span>Tracking</span>
+                    </div>
+                </div>
+                <div class="pipeline-connector"><i data-lucide="arrow-right"></i></div>
+                <div class="pipeline-card cyber-border glass-panel fade-in-up delay-2">
+                    <div class="card-icon"><i data-lucide="brain-circuit"></i></div>
+                    <h3>2. Foresight Engine</h3>
+                    <p>LSTM networks ingesting rolling 10-minute density maps to forecast peak congestion 2-minutes into the future.</p>
+                     <div class="tech-tags">
+                        <span>Time-Series</span> <span>PyTorch</span> <span>Prediction</span>
+                    </div>
+                </div>
+                <div class="pipeline-connector"><i data-lucide="arrow-right"></i></div>
+                <div class="pipeline-card cyber-border glass-panel fade-in-up delay-3">
+                    <div class="card-icon"><i data-lucide="cpu"></i></div>
+                    <h3>3. Decision Layer</h3>
+                    <p>Proximal Policy Optimization (PPO) agents adjusting signal phases in real-time to maximize global throughput.</p>
+                     <div class="tech-tags">
+                        <span>RL</span> <span>Dynamic Timing</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 10 Full Features -->
+        <section id="features" class="features-section fade-in-up">
+            <div class="section-header">
+                <h2>Unified 10-Feature <span class="gradient-text">Enforcement</span></h2>
+                <p>Complete suite of AI modules functioning simultaneously.</p>
+            </div>
+            <div class="features-grid-10">
+                <div class="feat-item"><i data-lucide="alert-triangle"></i><span>1. Wrong-Way Detection</span></div>
+                <div class="feat-item"><i data-lucide="users"></i><span>2. Triple Riding Check</span></div>
+                <div class="feat-item"><i data-lucide="smartphone"></i><span>3. Phone Usage Detection</span></div>
+                <div class="feat-item"><i data-lucide="map"></i><span>4. Congestion Heatmaps</span></div>
+                <div class="feat-item"><i data-lucide="file-text"></i><span>5. Auto E-Challan PDF</span></div>
+                <div class="feat-item"><i data-lucide="layout-dashboard"></i><span>6. FastAPI Dashboard</span></div>
+                <div class="feat-item"><i data-lucide="repeat"></i><span>7. Repeat Offender DB</span></div>
+                <div class="feat-item"><i data-lucide="moon"></i><span>8. AI Night Vision</span></div>
+                <div class="feat-item"><i data-lucide="database"></i><span>9. Secure Migrations</span></div>
+                <div class="feat-item"><i data-lucide="cctv"></i><span>10. Multi-Camera Scaling</span></div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer glass-panel">
+        <div class="footer-content">
+            <div class="footer-logo">
+                <i data-lucide="cpu" class="neon-icon"></i>
+                <span>TrafficAI Core</span>
+            </div>
+            <p>Built for the future of urban mobility through AI-driven automation.</p>
+            <p class="author">Author: Sahil Borhade</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

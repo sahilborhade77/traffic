@@ -1,73 +1,13 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, DateTime, JSON, DECIMAL
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from datetime import datetime, timedelta
 import logging
 from typing import Dict, Optional, List
+from datetime import datetime, timedelta
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+# Import models from central models.py
+from src.database.models import Base, Vehicle, Violation, SpeedTracking
 
 logger = logging.getLogger(__name__)
-Base = declarative_base()
-
-# MODELS (Integrated into DB Access Layer per Part 7)
-
-class Vehicle(Base):
-    """RTO Vehicle Registry."""
-    __tablename__ = 'vehicles'
-    
-    plate_number = Column(String(20), primary_key=True)
-    owner_name = Column(String(100), nullable=False)
-    owner_phone = Column(String(15), nullable=False)
-    owner_email = Column(String(100))
-    vehicle_type = Column(String(20))
-    registration_date = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.now)
-
-class Violation(Base):
-    """Recorded Traffic Violations."""
-    __tablename__ = 'violations'
-    
-    violation_id = Column(Integer, primary_key=True, autoincrement=True)
-    plate_number = Column(String(20))
-    violation_type = Column(String(50), nullable=False)
-    camera_id = Column(String(50), nullable=False)
-    location = Column(String(100), nullable=False)
-    timestamp = Column(DateTime, nullable=False)
-    
-    image_path = Column(String(255))
-    video_path = Column(String(255))
-    confidence_score = Column(Float)
-    
-    metadata_json = Column(JSON, name='metadata') # SQL column named 'metadata'
-    
-    fine_amount = Column(DECIMAL(10, 2))
-    fine_status = Column(String(20), default='pending')
-    
-    reviewed = Column(Boolean, default=False)
-    reviewer_notes = Column(String)
-    
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-
-class SpeedTracking(Base):
-    """Tracking records for Average Speed Enforcement."""
-    __tablename__ = 'speed_tracking'
-    
-    tracking_id = Column(Integer, primary_key=True, autoincrement=True)
-    plate_number = Column(String(20))
-    entry_camera = Column(String(50), nullable=False)
-    entry_timestamp = Column(DateTime, nullable=False)
-    exit_camera = Column(String(50))
-    exit_timestamp = Column(DateTime)
-    
-    distance_km = Column(DECIMAL(5, 2))
-    time_taken_seconds = Column(Integer)
-    average_speed_kmh = Column(DECIMAL(5, 2))
-    speed_limit_kmh = Column(Integer)
-    
-    is_violation = Column(Boolean, default=False)
-    violation_id = Column(Integer)
-    
-    created_at = Column(DateTime, default=datetime.now)
 
 # ACCESS LAYER
 

@@ -5,6 +5,7 @@ import os
 import time
 import plotly.express as px
 import plotly.graph_objects as go
+import requests
 
 # --- Page Setup ---
 st.set_page_config(
@@ -60,6 +61,18 @@ def load_data(file_path):
         return pd.read_csv(file_path)
     return None
 
+
+API_BASE_URL = os.getenv("TRAFFIC_API_URL", "http://localhost:8000")
+
+
+def fetch_api_json(path, default=None):
+    try:
+        response = requests.get(f"{API_BASE_URL}{path}", timeout=2)
+        response.raise_for_status()
+        return response.json()
+    except Exception:
+        return default
+
 # --- SIDEBAR: Status & Controls ---
 st.sidebar.title("🚦 Traffic Control Center")
 st.sidebar.info("Connected to Modules 1, 2, and 3")
@@ -70,8 +83,11 @@ performance_file = os.path.join(data_dir, "control_performance.csv")
 prediction_file = os.path.join(data_dir, "prediction_results.csv")
 
 st.sidebar.subheader("Live Status")
-is_running = st.sidebar.checkbox("Simulate Live Feed", value=True)
+is_running = st.sidebar.checkbox("Auto Refresh", value=True)
 refresh_rate = st.sidebar.slider("Refresh Rate (sec)", 1, 10, 2)
+api_health = fetch_api_json("/health", {})
+api_connected = api_health.get("status") == "healthy"
+st.sidebar.write(f"API: {'Connected' if api_connected else 'Offline'}")
 
 # --- HEADER: System Health ---
 st.title("🏙️ Smart City AI Traffic Management Dashboard")
@@ -82,6 +98,10 @@ col1, col2, col3, col4 = st.columns(4)
 
 # Load basic analytics for metrics
 df_analytics = load_data(analytics_file)
+summary_stats = fetch_api_json("/stats/summary", {})
+camera_status = fetch_api_json("/cameras/status", [])
+recent_violations = fetch_api_json("/violations/recent?limit=10", [])
+
 if df_analytics is not None and not df_analytics.empty:
     latest = df_analytics.iloc[-1]
     last_count = int(latest.get('Lane 1 (Incoming)_density', 0) + latest.get('Lane 2 (Outgoing)_density', 0))
@@ -93,11 +113,12 @@ else:
 with col1:
     st.metric(label="Detected Vehicles (Live)", value=last_count, delta=f"{np.random.randint(-2, 3)}")
 with col2:
-    st.metric(label="Predicted (Next Hour)", value=f"{last_count + np.random.randint(-5, 10)} avg", delta="Up 12%")
+    st.metric(label="Total Violations", value=summary_stats.get("total_violations", 0))
 with col3:
-    st.metric(label="Active Signal Phase", value=last_signal)
+    active_cameras = sum(1 for camera in camera_status if camera.get("is_active"))
+    st.metric(label="Configured Cameras", value=len(camera_status), delta=f"{active_cameras} reachable")
 with col4:
-    st.metric(label="AI System Health", value="98.5%", delta="Optimized")
+    st.metric(label="API System Health", value="Healthy" if api_connected else "Offline")
 
 st.divider()
 
@@ -143,6 +164,22 @@ with content_col2:
         st.info("Performance logs not available. Evaluating DQN...")
         # Show a dummy bar chart for visualization
         st.bar_chart({"Lane 1": 12, "Lane 2": 8, "Lane 3": 4, "Lane 4": 15})
+
+st.divider()
+status_col, violation_col = st.columns(2)
+with status_col:
+    st.subheader("Camera Status")
+    if camera_status:
+        st.dataframe(pd.DataFrame(camera_status), use_container_width=True)
+    else:
+        st.info("No camera status available from API.")
+
+with violation_col:
+    st.subheader("Recent Violations")
+    if recent_violations:
+        st.dataframe(pd.DataFrame(recent_violations), use_container_width=True)
+    else:
+        st.info("No violations recorded yet.")
 
 # --- BOTTOM SECTION: Forecasting ---
 st.divider()

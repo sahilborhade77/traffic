@@ -9,10 +9,8 @@ import cv2
 import sys
 import os
 
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-
-from vision.deepsort_tracker import VehicleTrack, DeepSORTTracker, TrajectoryAnalyzer
-from vision.tracking_integration import VehicleTrackingSystem, DwellTimeMonitor
+from src.tracking.deepsort_tracker import VehicleTrack, DeepSORTTracker, TrajectoryAnalyzer
+from src.vision.tracking_integration import VehicleTrackingSystem, DwellTimeMonitor
 
 class TestVehicleTrack(unittest.TestCase):
     """Test VehicleTrack class."""

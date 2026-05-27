@@ -535,7 +535,7 @@ class TestDataAggregation:
         })
         
         # Aggregate to hourly
-        hourly_stats = minute_data.groupby(pd.Grouper(key="timestamp", freq="H")).agg({
+        hourly_stats = minute_data.groupby(pd.Grouper(key="timestamp", freq="h")).agg({
             "vehicle_count": ["sum", "mean", "min", "max"],
             "average_speed": ["mean", "min", "max"]
         })

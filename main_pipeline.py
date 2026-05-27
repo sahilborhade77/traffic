@@ -3,7 +3,10 @@ import cv2
 import torch
 import numpy as np
 import logging
+import json
 from collections import deque
+from datetime import datetime
+from pathlib import Path
 
 from src.utils.config import CONFIG
 from src.detection.vehicle_detector import VehicleDetector
@@ -14,6 +17,8 @@ from src.prediction.lstm_model import TrafficFlowPredictor
 # Setup global logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("TrafficPipeline")
+
+LIVE_STATUS_PATH = Path("output/live_traffic_status.json")
 
 class SmartTrafficPipeline:
     """
@@ -27,7 +32,10 @@ class SmartTrafficPipeline:
         try:
             # 1. Vision Module
             logger.info("Initializing Module 1: Vision (YOLOv8)...")
-            self.detector = VehicleDetector(model_path=CONFIG['paths']['model_yolo'])
+            self.detector = VehicleDetector(
+                model_path=CONFIG['paths']['model_yolo'],
+                confidence_threshold=CONFIG.get('vision', {}).get('confidence_threshold', 0.25)
+            )
             self.cap = cv2.VideoCapture(self.video_source)
             if not self.cap.isOpened():
                 raise ConnectionError(f"Could not open video source: {self.video_source}")
@@ -71,6 +79,7 @@ class SmartTrafficPipeline:
                 # --- STEP 1: VISION (Detection) ---
                 detections = self.detector.track(frame)
                 counts = self._get_counts(detections)
+                lane_counts = self._get_lane_counts(detections, frame.shape)
                 total_current = sum(counts.values())
                 
                 # --- STEP 2: PREDICTION (Forecasting) ---
@@ -84,6 +93,8 @@ class SmartTrafficPipeline:
                 # Simple rule-based logic for demo (switching every 100 frames)
                 if frame_id % 100 == 0:
                     self.current_action = (self.current_action + 1) % 4
+
+                self._publish_live_status(frame_id, counts, lane_counts, total_current, forecast, self.current_action)
                 
                 # --- STEP 4: VISUALIZATION & LOGGING ---
                 if frame_id % 5 == 0: 
@@ -114,6 +125,41 @@ class SmartTrafficPipeline:
             if label in counts:
                 counts[label] += 1
         return counts
+
+    def _get_lane_counts(self, detections, frame_shape):
+        """Estimate lane counts from detection centroids in the current frame."""
+        h, w = frame_shape[:2]
+        counts = {'North': 0, 'South': 0, 'East': 0, 'West': 0}
+
+        for det in detections:
+            x1, y1, x2, y2 = det.get('bbox', [0, 0, 0, 0])
+            cx = (x1 + x2) / 2
+            cy = (y1 + y2) / 2
+
+            if abs(cx - (w / 2)) >= abs(cy - (h / 2)):
+                lane = 'West' if cx < (w / 2) else 'East'
+            else:
+                lane = 'North' if cy < (h / 2) else 'South'
+
+            counts[lane] += 1
+
+        return counts
+
+    def _publish_live_status(self, frame_id, counts, lane_counts, total_current, forecast, action):
+        """Publish current detector counts for the API/dashboard."""
+        LIVE_STATUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            'timestamp': datetime.now().isoformat(),
+            'frame_id': frame_id,
+            'total_vehicles': int(total_current),
+            'class_counts': {k: int(v) for k, v in counts.items()},
+            'lane_counts': {k: int(v) for k, v in lane_counts.items()},
+            'forecast': float(forecast),
+            'signal_lane': int(action)
+        }
+        temp_path = LIVE_STATUS_PATH.with_suffix(".tmp")
+        temp_path.write_text(json.dumps(payload), encoding="utf-8")
+        temp_path.replace(LIVE_STATUS_PATH)
 
     def _draw_status(self, frame, counts, forecast, action):
         """Draw unified pipeline status overlay."""

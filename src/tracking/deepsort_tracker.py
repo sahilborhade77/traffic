@@ -553,7 +553,7 @@ class TrajectoryAnalyzer:
                 directions.append(avg_dir)
 
         if not directions:
-            return None
+            return 0.0
 
         # Convert to unit vectors for averaging
         directions = np.array(directions) * np.pi / 180

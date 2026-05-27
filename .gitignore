@@ -50,3 +50,12 @@ traceback.log
 # OS files
 .DS_Store
 Thumbs.db
+
+# Scratch folder
+scratch/
+
+# Backup files
+*.bak
+
+# Test output/log text files
+test_output*.txt

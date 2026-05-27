@@ -8,6 +8,26 @@ from pathlib import Path
 import os
 from typing import Generator
 import asyncio
+import inspect
+
+
+def pytest_collection_modifyitems(items):
+    """Run async tests through anyio without requiring pytest-asyncio."""
+    for item in items:
+        if inspect.iscoroutinefunction(item.obj):
+            item.add_marker(pytest.mark.anyio)
+
+
+def pytest_pyfunc_call(pyfuncitem):
+    """Minimal async test runner for coroutine tests in this suite."""
+    if inspect.iscoroutinefunction(pyfuncitem.obj):
+        kwargs = {
+            name: pyfuncitem.funcargs[name]
+            for name in pyfuncitem._fixtureinfo.argnames
+        }
+        asyncio.run(pyfuncitem.obj(**kwargs))
+        return True
+    return None
 
 
 # ============================================================================

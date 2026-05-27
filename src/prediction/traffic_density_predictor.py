@@ -13,6 +13,7 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import pandas as pd
 import logging
+from datetime import datetime, timedelta
 from typing import Tuple, List, Dict, Optional, Any
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -187,7 +188,7 @@ class TrafficDensityPredictor:
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, mode='min', factor=0.5, patience=5, verbose=True
+            self.optimizer, mode='min', factor=0.5, patience=5
         )
 
         logger.info(f"Initialized TrafficDensityPredictor on {self.device}")
@@ -471,7 +472,7 @@ class TrafficDensityPredictor:
         if not os.path.exists(checkpoint_path):
             raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
 
-        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.scaler = checkpoint.get('scaler', StandardScaler())
 

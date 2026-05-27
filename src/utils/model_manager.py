@@ -7,6 +7,7 @@ All detection modules share this singleton — eliminates redundant GPU allocati
 
 import torch
 import logging
+import os
 from ultralytics import YOLO
 import easyocr
 
@@ -34,8 +35,12 @@ class ModelManager:
         logger.info(f"ModelManager: GPU={self.device}, VRAM Budget=4GB")
 
         # ── Single YOLO model handles ALL detection tasks ──
-        logger.info("Loading shared YOLOv8n model...")
-        self.yolo = YOLO(yolo_model_path)
+        # Prefer optimized ONNX model if available
+        onnx_path = yolo_model_path.replace('.pt', '.onnx')
+        final_path = onnx_path if os.path.exists(onnx_path) else yolo_model_path
+        
+        logger.info(f"Loading shared YOLO model from: {final_path}...")
+        self.yolo = YOLO(final_path)
         self.yolo.to(self.device)
         if self.device == 'cuda':
             self.yolo.model.half()  # FP16 → saves ~1GB VRAM

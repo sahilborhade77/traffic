@@ -14,14 +14,18 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple
+from pathlib import Path
+from typing import Dict, List, Tuple, Optional
+from src.prediction.forecaster import TrafficForecaster
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 class CameraFeedGrid:
     """Live camera feed grid display."""
     
     @staticmethod
-    def render_feed(lane_name: str, vehicle_count: int, congestion: float, signal_state: str):
+    def render_feed(lane_name: str, camera_id: str, vehicle_count: int, congestion: float, signal_state: str):
         """Render a single camera feed card."""
         # Color code based on congestion
         if congestion < 0.3:
@@ -44,7 +48,7 @@ class CameraFeedGrid:
         )
         
         fig.add_annotation(
-            text=f"{lane_name}<br>Vehicles: {vehicle_count}<br>Congestion: {congestion:.0%}<br>Signal: {signal_state}",
+            text=f"{lane_name} ({camera_id})<br>Vehicles: {vehicle_count}<br>Congestion: {congestion:.0%}<br>Signal: {signal_state}",
             xref="paper", yref="paper",
             x=0.5, y=0.5,
             showarrow=False,
@@ -76,11 +80,32 @@ class CameraFeedGrid:
             with cols[idx % 4]:
                 fig = CameraFeedGrid.render_feed(
                     lane_name=lane_data["name"],
+                    camera_id=lane_data.get("id", "CAM-XXX"),
                     vehicle_count=lane_data["vehicles"],
                     congestion=lane_data["congestion"],
                     signal_state=lane_data["signal"]
                 )
                 st.plotly_chart(fig, use_container_width=True)
+
+class MultiCameraStatus:
+    """Component to show status/health of all registered cameras."""
+    
+    @staticmethod
+    def render(camera_stats: Dict) -> None:
+        st.subheader("🖥️ Network Camera Health")
+        
+        cols = st.columns(len(camera_stats))
+        for i, (cam_id, stat) in enumerate(camera_stats.items()):
+            with cols[i]:
+                status_color = "green" if stat["is_active"] else "red"
+                st.markdown(f"""
+                <div style="border-left: 5px solid {status_color}; padding-left: 10px; background: #111; padding: 10px; border-radius: 5px;">
+                    <b style="color: {status_color};">{cam_id}</b><br>
+                    <small>{stat['name']}</small><br>
+                    <span>FPS: {stat.get('fps', 30)}</span><br>
+                    <span style="font-size: 0.8em; color: #888;">Processed: {stat['frames_processed']}</span>
+                </div>
+                """, unsafe_allow_html=True)
 
 
 class TrafficHeatmap:
@@ -139,6 +164,48 @@ class TrafficHeatmap:
         )
         
         st.plotly_chart(fig, use_container_width=True)
+
+    @staticmethod
+    def render_forecast() -> None:
+        """Render LSTM traffic forecast."""
+        st.subheader("🔮 AI Traffic Forecast (Next 15 Minutes)")
+        
+        try:
+            forecaster = TrafficForecaster()
+            # Try to load model, fallback to synthetic if fails
+            try:
+                forecaster.load_model('models/traffic_density_lstm.pth')
+            except:
+                pass
+                
+            # Generate 60 mins of "recent" data
+            recent_data = np.random.rand(60, 4) * 50
+            results = forecaster.predict_next_15_minutes(recent_data)
+            
+            # Convert to DataFrame for plotting
+            preds = np.array(results['predictions'])
+            df_forecast = pd.DataFrame(preds, columns=results['lanes'])
+            df_forecast['Time'] = results['timestamps']
+            
+            fig = px.line(
+                df_forecast,
+                x='Time',
+                y=results['lanes'],
+                title="Predicted Traffic Density (Next 15 Minutes)",
+                labels={"value": "Predicted Density", "Time": "Future Time"}
+            )
+            fig.update_layout(hovermode="x unified", height=350)
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Summary
+            summary = forecaster.get_prediction_summary(results)
+            cols = st.columns(4)
+            for i, lane in enumerate(results['lanes']):
+                with cols[i]:
+                    st.metric(f"{lane} Peak", f"{summary['max_density'][lane]:.1f}", "Predicted")
+                    
+        except Exception as e:
+            st.warning(f"Forecasting engine initializing... {e}")
 
 
 class HistoricalTrends:
@@ -219,6 +286,9 @@ class HistoricalTrends:
             )
             st.plotly_chart(fig_violations, use_container_width=True)
         
+        # Add Forecast
+        TrafficHeatmap.render_forecast()
+        
         # Statistics
         st.metric("Avg Daily Vehicles", f"{trends['vehicles']['Daily Average'].mean():.0f}")
         st.metric("Total Violations (30d)", f"{trends['violations'][['Red Light', 'Speeding', 'Illegal Turn', 'Other']].sum().sum():.0f}")
@@ -278,6 +348,11 @@ class ViolationGallery:
             if not violation["processed"]:
                 if st.button("Process", key=f"btn_{violation['id']}"):
                     st.success("Violation processed!")
+            
+            # Show PDF link if processed
+            if violation["processed"]:
+                challan_path = PROJECT_ROOT / "output" / "challans" / f"echallan_{violation['id']}.pdf"
+                st.markdown(f"[📄 View Challan]({challan_path.as_uri()})")
     
     @staticmethod
     def render(sort_by: str = "recent", filter_type: str = "all", limit: int = 12) -> None:

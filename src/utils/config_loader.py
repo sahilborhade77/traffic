@@ -61,7 +61,7 @@ class CameraConfig:
 @dataclass
 class ModelConfig:
     """Model configuration."""
-    yolo_path: str
+    yolo_path: str = "yolov8n.pt"
     detection_confidence: float = 0.5
     nms_threshold: float = 0.45
     device: str = "cuda"

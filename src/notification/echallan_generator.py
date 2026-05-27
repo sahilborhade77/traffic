@@ -8,7 +8,10 @@ logger = logging.getLogger(__name__)
 class EChallanGenerator:
     """
     Electronic Challan Generation for traffic violations.
-    Formats violation evidence into a formal PDF report.
+    Formats violation evidence into 
+    
+    
+     formal PDF report.
     """
     def __init__(self, output_dir='data/violations/challans'):
         """

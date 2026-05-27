@@ -11,13 +11,14 @@ class VehicleDetector:
     Vehicle Detection using YOLOv8.
     Optimized for high-FPS inference.
     """
-    def __init__(self, model_path='models/yolov8n.pt'):
+    def __init__(self, model_path='models/yolov8n.pt', confidence_threshold: float = 0.25):
         """
         Initialize the YOLOv8 model.
         """
         try:
             self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
             self.model = YOLO(model_path).to(self.device)
+            self.confidence_threshold = confidence_threshold
             # self.model.half() # Disabled for compatibility; using FP32
             # Define target classes (COCO)
             self.target_classes = [2, 3, 5, 7] # car, motorcycle, bus, truck
@@ -34,7 +35,7 @@ class VehicleDetector:
         if self.model is None:
             return []
             
-        results = self.model(frame, conf=0.25, verbose=False)[0]
+        results = self.model(frame, conf=self.confidence_threshold, verbose=False)[0]
         
         detections = []
         for box in results.boxes:
@@ -58,14 +59,18 @@ class VehicleDetector:
             return []
             
         # Use YOLOv8's built-in tracker (BoTSORT or ByteTrack)
-        results = self.model.track(frame, persist=True, conf=0.25, verbose=False)[0]
+        results = self.model.track(frame, persist=True, conf=self.confidence_threshold, verbose=False)[0]
         
         detections = []
-        if results.boxes is not None and results.boxes.id is not None:
+        if results.boxes is not None:
             # Class mapping (COCO)
             class_map = {2: 'car', 3: 'motorcycle', 5: 'bus', 7: 'truck'}
             
-            for box, track_id in zip(results.boxes, results.boxes.id):
+            track_ids = results.boxes.id
+            if track_ids is None:
+                track_ids = [None] * len(results.boxes)
+
+            for box, track_id in zip(results.boxes, track_ids):
                 cls_id = int(box.cls[0].cpu().numpy())
                 if cls_id in self.target_classes:
                     x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
@@ -75,7 +80,7 @@ class VehicleDetector:
                         'label': class_map.get(cls_id, 'vehicle'),
                         'bbox': [x1, y1, x2, y2],
                         'conf': conf,
-                        'track_id': int(track_id.cpu().numpy())
+                        'track_id': int(track_id.cpu().numpy()) if track_id is not None else -1
                     })
                     
         return detections

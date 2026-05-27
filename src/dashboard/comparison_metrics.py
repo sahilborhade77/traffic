@@ -13,7 +13,8 @@ import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
+from src.control.adaptive_traffic_controller import AdaptiveTrafficController
 
 
 class ComparisonMetrics:
@@ -391,11 +392,46 @@ class ComparisonMetrics:
         
         fig.update_layout(hovermode="x unified", height=400)
         st.plotly_chart(fig, use_container_width=True)
+
+    @staticmethod
+    def render_optimization_sim() -> None:
+        """Render a live simulation of the AdaptiveTrafficController."""
+        st.subheader("🤖 AI Optimization Simulator (Live)")
+        
+        # Initialize controller
+        controller = AdaptiveTrafficController(num_phases=4)
+        
+        # Generate some random traffic demand
+        demand = np.random.randint(5, 30, size=4)
+        
+        # Run 10 steps of optimization
+        state_history = []
+        for _ in range(10):
+            # Update with 5s time step
+            state = controller.update(demand, dt=5.0)
+            state_history.append(state)
+            # Randomly change demand slightly
+            demand = np.clip(demand + np.random.randint(-2, 3, size=4), 0, 50)
+            
+        # Display current state
+        curr = state_history[-1]
+        cols = st.columns(4)
+        for i in range(4):
+            with cols[i]:
+                st.metric(f"Phase {i} Green", f"{curr['green_times'][i]:.1f}s", 
+                          f"Wait: {curr['waiting_times'][i]:.1f}s", delta_color="inverse")
+        
+        st.info(f"Current Signal: **{curr['signal_state'].upper()}** in Phase **{curr['current_phase']}**")
     
     @staticmethod
     def render_all() -> None:
         """Render all comparison metrics sections."""
         ComparisonMetrics.render_kpi_comparison()
+        
+        st.divider()
+        
+        # Add Optimization Sim
+        ComparisonMetrics.render_optimization_sim()
         
         st.divider()
         

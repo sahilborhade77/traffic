@@ -20,18 +20,16 @@ import os
 from pathlib import Path
 from typing import Dict, Any
 
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-
-from vision.red_light_detector import (
+from src.vision.red_light_detector import (
     IntersectionZoneManager,
     RedLightViolationDetector,
     RedLightViolation
 )
-from vision.red_light_integration import (
+from src.vision.red_light_integration import (
     EnforcementSystem,
     RedLightComplianceAnalyzer
 )
-from vision.deepsort_tracker import VehicleTrack
+from src.tracking.deepsort_tracker import VehicleTrack
 
 
 class TestIntersectionZoneManager(unittest.TestCase):

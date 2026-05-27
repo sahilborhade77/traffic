@@ -130,15 +130,21 @@ class MultiCameraManager:
                         None, frame_processor, frame, stream.camera_id
                     )
 
-                    # Display (non-blocking)
-                    if processed is not None:
+                    # Display (optional)
+                    try:
                         cv2.imshow(f"TIS — {stream.name} ({stream.camera_id})", processed)
+                    except Exception:
+                        pass # Headless mode
 
                 # Allow other tasks to run
                 await asyncio.sleep(0.001)
 
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
+                # Check for exit (optional)
+                try:
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+                except Exception:
+                    await asyncio.sleep(0.01) # Yield instead if waitKey fails
 
         except Exception as e:
             logger.error(f"Camera {stream.camera_id} processing error: {e}")
@@ -163,7 +169,10 @@ class MultiCameraManager:
             for stream in self.streams.values()
         ]
         await asyncio.gather(*tasks)
-        cv2.destroyAllWindows()
+        try:
+            cv2.destroyAllWindows()
+        except Exception:
+            pass
 
     def get_status(self) -> Dict:
         """Return health status of all registered cameras."""

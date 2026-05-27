@@ -39,6 +39,7 @@ from src.violations.speed_enforcer import AverageSpeedEnforcer, VehiclePassage, 
 from src.violations.wrong_way_detector import WrongWayDetector
 from src.violations.triple_riding_detector import TripleRidingDetector
 from src.violations.phone_detector import PhoneDetector
+from src.violations.speed_detector import SpeedDetector
 from src.violations.repeat_offender import RepeatOffenderEngine
 
 # ── Analytics ──
@@ -64,8 +65,9 @@ BASE_FINES = {
     'RED_LIGHT': 1000,
     'OVERSPEEDING_AVERAGE': 2000,
     'WRONG_WAY': 5000,
-    'TRIPLE_RIDING': 1000,
+    'THREE_RIDING': 1000,
     'PHONE_WHILE_DRIVING': 1000,
+    'OVERSPEEDING': 2000,
 }
 
 
@@ -116,6 +118,10 @@ class TrafficEnforcementSystem:
         )
         self.triple_riding_det = TripleRidingDetector()
         self.phone_det = PhoneDetector(conf_threshold=0.45, cooldown_frames=60)
+        self.speed_det = SpeedDetector(
+            calibration_ppm=float(self.config.get('calibration_ppm', 10.0)),
+            speed_threshold_kmh=float(self.config.get('speed_limit', 60.0))
+        )
 
         # Speed zones from config
         speed_zones = {
@@ -219,6 +225,13 @@ class TrafficEnforcementSystem:
                 if ph:
                     self._handle_violation(frame, track, 'PHONE_WHILE_DRIVING', camera_id,
                                             {'confidence': ph.confidence})
+
+            # ── Feature: Point-based Speed Detection ──
+            if self.frame_count % 10 == 0:
+                sd = self.speed_det.check_violation(track_id, list(track.position_history))
+                if sd:
+                    self._handle_violation(frame, track, 'OVERSPEEDING', camera_id,
+                                            {'speed_kmh': sd['speed_kmh'], 'limit': sd['speed_limit']})
 
             # ── ANPR — Lazy (once per track ID) ──
             if track_id not in self._anpr_cache and self.frame_count % 15 == 0:

@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 class NotificationService:
     """
     Handles alerts via SMS, Email, and WhatsApp for traffic violations.
-    Connects to external gateways (e.g. Twilio, SendGrid, etc.).
+    Academic demo mode logs notifications instead of sending real SMS/email.
     """
     def __init__(self, sms_config: Dict[str, Any], email_config: Dict[str, Any]):
         """
@@ -14,7 +14,8 @@ class NotificationService:
         """
         self.sms_config = sms_config
         self.email_config = email_config
-        logger.info("Notification Service initialized.")
+        self.mode = "mock"
+        logger.info("Notification Service initialized in MOCK mode.")
 
     def send_violation_alert(self, violation_id: int, owner_phone: str, owner_email: str, violation_type: str, fine_amount: float):
         """
@@ -26,13 +27,13 @@ class NotificationService:
             "Please visit the e-challan portal to pay."
         )
         
-        # Simulate SMS
-        logger.info(f"SMS SENT to {owner_phone}: {message[:50]}...")
+        # Mock SMS
+        logger.info(f"[MOCK SMS] To {owner_phone}: {message[:50]}...")
         
-        # Simulate Email
-        logger.info(f"EMAIL SENT to {owner_email}: Subject: E-Challan Issued - {violation_id}")
+        # Mock Email
+        logger.info(f"[MOCK EMAIL] To {owner_email}: Subject: E-Challan Issued - {violation_id}")
         
-        return True
+        return {"delivered": True, "mode": self.mode, "channels": ["sms", "email"]}
 
     def send_broadcast(self, title: str, message: str):
         """Send a general alert to all dashboard subscribers."""

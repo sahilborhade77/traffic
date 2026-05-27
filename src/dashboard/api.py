@@ -172,6 +172,7 @@ signal_state = {
 }
 
 system_start_time = datetime.now()
+LIVE_STATUS_PATH = Path("output/live_traffic_status.json")
 
 # ===================== Utility Functions =====================
 
@@ -191,6 +192,41 @@ def get_congestion_level(vehicle_count: int, avg_speed: float) -> str:
         return 'critical'
     else:
         return 'high'
+
+
+def get_live_traffic_state() -> Dict[str, Dict[str, float]]:
+    """Read live detector counts written by the vision pipeline."""
+    live_state = {
+        lane: dict(values)
+        for lane, values in traffic_state.items()
+    }
+
+    if not LIVE_STATUS_PATH.exists():
+        return live_state
+
+    try:
+        payload = json.loads(LIVE_STATUS_PATH.read_text(encoding="utf-8"))
+        lane_counts = payload.get("lane_counts", {})
+        signal_lane = int(payload.get("signal_lane", 0))
+        signal_lanes = ["North", "South", "East", "West"]
+
+        for index, lane in enumerate(live_state):
+            count = int(lane_counts.get(lane, 0))
+            live_state[lane]["vehicle_count"] = count
+            live_state[lane]["avg_speed"] = 12.0 if count < 5 else 8.0 if count < 15 else 4.0
+            live_state[lane]["wait_time"] = float(max(0, count * 2.5))
+
+            if index == signal_lane:
+                signal_state[lane]["state"] = "GREEN"
+                signal_state[lane]["time_remaining"] = 25
+            else:
+                signal_state[lane]["state"] = "RED"
+                signal_state[lane]["time_remaining"] = 30
+
+    except Exception as exc:
+        logger.warning(f"Could not read live traffic status: {exc}")
+
+    return live_state
 
 
 async def simulate_traffic_updates():
@@ -279,14 +315,15 @@ async def get_traffic_status(lane: Optional[str] = None):
     Returns:
     - List of traffic status objects
     """
-    lanes = [lane] if lane else list(traffic_state.keys())
+    live_state = get_live_traffic_state()
+    lanes = [lane] if lane else list(live_state.keys())
     results = []
 
     for current_lane in lanes:
-        if current_lane not in traffic_state:
+        if current_lane not in live_state:
             raise HTTPException(status_code=404, detail=f"Lane '{current_lane}' not found")
 
-        state = traffic_state[current_lane]
+        state = live_state[current_lane]
         congestion = get_congestion_level(
             state['vehicle_count'],
             state['avg_speed']
@@ -310,7 +347,7 @@ async def get_traffic_status(lane: Optional[str] = None):
 @app.get("/api/traffic/congestion")
 async def get_congestion_index():
     """Get overall congestion index (0-1 scale)."""
-    congestion_levels = get_traffic_status()
+    congestion_levels = await get_traffic_status()
     level_map = {'low': 0.2, 'medium': 0.5, 'high': 0.75, 'critical': 1.0}
     indices = [level_map.get(s.congestion_level, 0.5) for s in congestion_levels]
     avg_index = np.mean(indices) if indices else 0.0
@@ -375,11 +412,12 @@ async def get_hourly_statistics(lane: Optional[str] = None):
     """
     now = datetime.now()
 
-    lanes = [lane] if lane else list(traffic_state.keys())
+    live_state = get_live_traffic_state()
+    lanes = [lane] if lane else list(live_state.keys())
     results = []
 
     for current_lane in lanes:
-        state = traffic_state[current_lane]
+        state = live_state[current_lane]
         congestion = get_congestion_level(
             state['vehicle_count'],
             state['avg_speed']
@@ -415,14 +453,14 @@ async def get_daily_statistics(date: Optional[str] = None):
     target_date = date or datetime.now().date().isoformat()
     target_dt = datetime.fromisoformat(target_date)
 
-    # Calculate statistics
+    live_state = get_live_traffic_state()
     total_vehicles = sum(
-        traffic_state[lane]['vehicle_count'] * 24 * 6
-        for lane in traffic_state
+        live_state[lane]['vehicle_count'] * 24 * 6
+        for lane in live_state
     )
     avg_wait_time = np.mean([
-        traffic_state[lane]['wait_time']
-        for lane in traffic_state
+        live_state[lane]['wait_time']
+        for lane in live_state
     ])
 
     # Simulate peak hours

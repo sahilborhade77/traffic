@@ -186,6 +186,33 @@ class EnforcementSystem:
         else:
             return 'low'
 
+    def calculate_severity(self, speed: float) -> str:
+        """Backward-compatible severity helper accepting a raw speed."""
+        if speed >= 15.0:
+            return 'critical'
+        if speed >= 10.0:
+            return 'high'
+        if speed >= 7.5:
+            return 'medium'
+        return 'low'
+
+    def create_alert(self, track, frame: np.ndarray, frame_number: int, lane_name: str):
+        """Backward-compatible alert factory used by older tests."""
+        violation = self.detector.create_violation(track, lane_name, frame, frame_number)
+        alert = {
+            'violation_id': violation.violation_id,
+            'track_id': violation.track_id,
+            'lane': violation.lane_name,
+            'vehicle_type': violation.vehicle_class,
+            'timestamp': violation.timestamp,
+            'speed': violation.vehicle_speed,
+            'snapshot': violation.snapshot_path,
+            'severity': self._calculate_severity(violation),
+            'status': 'VIOLATION_DETECTED'
+        }
+        self.alerts[violation.violation_id] = alert
+        return alert
+
     def visualize_violations(self,
                             frame: np.ndarray,
                             show_zones: bool = True,
@@ -242,7 +269,7 @@ class EnforcementSystem:
                 np.mean(self.processing_times) * 1000
                 if self.processing_times else 0
             ),
-            'violations': [v.to_dict() for v in self.detector.violations.values()],
+            'violations': [v.to_dict() for v in _violation_values(self.detector.violations)],
             'alerts': self.alerts
         }
 
@@ -257,7 +284,7 @@ class EnforcementSystem:
             Dictionary {track_id: violation_count}
         """
         violator_counts = {}
-        for violation in self.detector.violations.values():
+        for violation in _violation_values(self.detector.violations):
             violator_counts[violation.track_id] = (
                 violator_counts.get(violation.track_id, 0) + 1
             )
@@ -270,8 +297,9 @@ class EnforcementSystem:
     def export_violations(self, output_dir: Optional[str] = None):
         """Export violations to files."""
         export_dir = output_dir or str(self.logs_dir)
-        self.detector.export_violations(export_dir)
+        paths = self.detector.export_violations(export_dir)
         logger.info(f"Exported violations to {export_dir}")
+        return paths
 
     def generate_enforcement_report(self) -> str:
         """
@@ -316,7 +344,7 @@ class EnforcementSystem:
         # Recent violations
         report += "Recent Violations (Last 10):\n"
         for i, violation in enumerate(
-            list(self.detector.violations.values())[-10:], 1
+            list(_violation_values(self.detector.violations))[-10:], 1
         ):
             report += (
                 f"  {i}. [{violation.timestamp}] {violation.vehicle_class} "
@@ -381,7 +409,7 @@ class RedLightComplianceAnalyzer:
         """
         bin_counts = {}
 
-        for violation in self.enforcement_system.detector.violations.values():
+        for violation in _violation_values(self.enforcement_system.detector.violations):
             time_bin = int(violation.unix_timestamp // bin_size)
             bin_counts[time_bin] = bin_counts.get(time_bin, 0) + 1
 
@@ -404,6 +432,17 @@ class RedLightComplianceAnalyzer:
             vehicle_class: count / total_violations
             for vehicle_class, count in class_violations.items()
         }
+
+    def analyze_vehicle_class_risk(self) -> Dict[str, float]:
+        """Backward-compatible alias used by older tests."""
+        return self.get_vehicle_class_risk()
+
+    def identify_repeat_violators(self, min_count: int = 2) -> Dict[int, int]:
+        """Identify tracks with repeated violations."""
+        counts: Dict[int, int] = {}
+        for violation in _violation_values(self.enforcement_system.detector.violations):
+            counts[violation.track_id] = counts.get(violation.track_id, 0) + 1
+        return {track_id: count for track_id, count in counts.items() if count >= min_count}
 
     def generate_compliance_report(self) -> str:
         """Generate compliance analysis report."""
@@ -431,6 +470,12 @@ class RedLightComplianceAnalyzer:
         report += "\n" + "-" * 60 + "\n"
 
         return report
+
+
+def _violation_values(violations):
+    if hasattr(violations, "values"):
+        return violations.values()
+    return violations
 
 
 # Example usage

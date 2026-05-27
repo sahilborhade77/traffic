@@ -18,6 +18,10 @@ import logging
 import uvicorn
 import sys
 import os
+from pathlib import Path
+import socket
+
+import yaml
 
 sys.path.append(os.getcwd())
 from src.database.violation_db import ViolationDatabase, Violation
@@ -77,6 +81,32 @@ class CameraStatus(BaseModel):
 def root():
     return {"status": "online", "system": "Traffic Intelligence System v2.0"}
 
+@app.get("/health", tags=["Health"])
+def health_check():
+    """Health check endpoint for monitoring"""
+    try:
+        # Check database connection
+        db_status = "connected" if db is not None else "disconnected"
+        
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "version": "2.0.0",
+            "database": db_status,
+            "api": "running",
+            "checks": {
+                "database": db_status == "connected",
+                "api": True
+            }
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
 @app.get("/violations/recent", response_model=List[ViolationOut], tags=["Violations"])
 def get_recent_violations(limit: int = Query(50, le=200)):
     """Fetch the most recent N violations for the live feed."""
@@ -130,7 +160,7 @@ def get_summary_stats():
         "violations_by_type": {vtype: count for vtype, count in by_type}
     }
 
-@app.get("/cameras/status", tags=["Infrastructure"])
+@app.get("/cameras/status-legacy", tags=["Infrastructure"])
 def get_camera_status():
     """Returns health status of all configured cameras."""
     # Returns placeholder — in production, integrate with your RTSP health checker
@@ -140,6 +170,56 @@ def get_camera_status():
         {"camera_id": "CAM_003", "name": "South Junction", "is_active": False,  "type": "junction"},
     ]
     return cameras
+
+
+@app.get("/cameras/status", tags=["Infrastructure"])
+def get_configured_camera_status():
+    """Returns config-based health status of all configured cameras."""
+    config_path = Path(os.getenv("CAMERA_CONFIG", "config/cameras.yaml"))
+    if not config_path.exists():
+        return []
+
+    with config_path.open("r", encoding="utf-8") as handle:
+        config = yaml.safe_load(handle) or {}
+
+    statuses = []
+    for key, camera in (config.get("cameras") or {}).items():
+        rtsp_url = camera.get("rtsp_url", "")
+        reachable = _is_rtsp_host_reachable(rtsp_url)
+        statuses.append({
+            "camera_id": camera.get("id", key),
+            "config_key": key,
+            "name": camera.get("name", key),
+            "location": camera.get("location", "Unknown"),
+            "is_active": bool(reachable),
+            "configured": True,
+            "type": camera.get("type", "unknown"),
+            "rtsp_url": rtsp_url,
+            "last_seen": datetime.now().isoformat() if reachable else None,
+            "status_note": "reachable" if reachable else "configured_unreachable_or_offline"
+        })
+    return statuses
+
+
+def _is_rtsp_host_reachable(rtsp_url: str, timeout: float = 0.25) -> bool:
+    """Fast TCP reachability check for configured RTSP camera hosts."""
+    if not rtsp_url.startswith("rtsp://"):
+        return False
+    try:
+        without_scheme = rtsp_url.split("://", 1)[1]
+        host_part = without_scheme.split("/", 1)[0]
+        if "@" in host_part:
+            host_part = host_part.rsplit("@", 1)[1]
+        if ":" in host_part:
+            host, port_text = host_part.rsplit(":", 1)
+            port = int(port_text)
+        else:
+            host, port = host_part, 554
+
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except Exception:
+        return False
 
 if __name__ == "__main__":
     uvicorn.run("src.api.main_api:app", host="0.0.0.0", port=8000, reload=True)

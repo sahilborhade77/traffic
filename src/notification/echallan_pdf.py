@@ -13,7 +13,7 @@ import logging
 import qrcode
 import io
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from reportlab.lib.pagesizes import A4
@@ -139,7 +139,7 @@ class EChallanPDFGenerator:
         violation_data = [
             ["Violation Type:", violation_type],
             ["Fine Amount:", f"Rs. {fine_amount:.2f}"],
-            ["Due Date:", (violation_timestamp.replace(day=violation_timestamp.day+30)).strftime("%d-%m-%Y") if violation_timestamp.month < 12 else "Next Month"],
+            ["Due Date:", (violation_timestamp + timedelta(days=30)).strftime("%d-%m-%Y")],
         ]
         v_table = Table(violation_data, colWidths=[5*cm, 13*cm])
         v_table.setStyle(TableStyle([
